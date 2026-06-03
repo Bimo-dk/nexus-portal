@@ -8,6 +8,11 @@ export const routes: Routes = [
       import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
+    path: 'system',
+    loadComponent: () =>
+      import('./features/system/system.component').then((m) => m.SystemComponent),
+  },
+  {
     path: 'remotes',
     children: [
       {

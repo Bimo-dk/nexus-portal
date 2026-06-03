@@ -11,12 +11,21 @@ import type {
   RemoteHealthStatus,
   UpdateRemoteRequest,
 } from '../../types/remote-config';
+import type { SystemHealthSnapshot } from '../../types/system-health';
 
 @Injectable({ providedIn: 'root' })
 export class ManagerService {
   private readonly http = inject(HttpClient);
   private readonly snack = inject(MatSnackBar);
   private readonly baseUrl = `${environment.registryUrl}/remotes`;
+  private readonly systemUrl = `${environment.registryUrl}/system`;
+
+  getSystemHealth(fresh = false): Observable<SystemHealthSnapshot> {
+    const url = fresh ? `${this.systemUrl}/health?fresh=true` : `${this.systemUrl}/health`;
+    return this.http.get<SystemHealthSnapshot>(url).pipe(
+      catchError((err) => this.onError(err, 'Kunne ikke hente system health')),
+    );
+  }
 
   getRemotes(): Observable<RegistryResponse> {
     return this.http.get<RegistryResponse>(this.baseUrl).pipe(catchError((err) => this.onError(err, 'Kunne ikke hente remotes')));

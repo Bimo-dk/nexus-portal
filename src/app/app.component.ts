@@ -24,6 +24,7 @@ import { MatIconModule } from '@angular/material/icon';
       <span class="brand">Nexus Manager</span>
       <span class="spacer"></span>
       <a mat-button routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+      <a mat-button routerLink="/system" routerLinkActive="active">System</a>
       <a mat-button routerLink="/remotes" routerLinkActive="active">Remotes</a>
     </mat-toolbar>
 
@@ -33,6 +34,10 @@ import { MatIconModule } from '@angular/material/icon';
           <a mat-list-item routerLink="/dashboard" routerLinkActive="active">
             <mat-icon matListItemIcon>dashboard</mat-icon>
             <span matListItemTitle>Dashboard</span>
+          </a>
+          <a mat-list-item routerLink="/system" routerLinkActive="active">
+            <mat-icon matListItemIcon>monitor_heart</mat-icon>
+            <span matListItemTitle>System</span>
           </a>
           <a mat-list-item routerLink="/remotes" routerLinkActive="active">
             <mat-icon matListItemIcon>cloud</mat-icon>
