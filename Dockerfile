@@ -1,29 +1,29 @@
 # ============================================================================
-# nexus-portal — admin UI til styring af registry
-# Bygges fra projekt-rod-context.
+# nexus-portal — admin UI til Bimo-Nexus registry
+#
+# Bygges fra repoets EGEN rod (./nexus-portal context) — pakker hentes fra
+# GitHub Packages via .npmrc, ikke fra lokal nexus-packages sti.
+#
+# Build:
+#   docker build --build-arg GITHUB_TOKEN=ghp_xxx -t nexus-portal:local .
+# Run:
+#   docker run --rm -p 8669:80 nexus-portal:local
 # ============================================================================
 
 FROM node:22-alpine AS builder
+WORKDIR /app
 
-# ----- Build @bimo-nexus/core (file: dep) -----
-WORKDIR /workspace/nexus-packages/packages/core
-COPY nexus-packages/packages/core/package*.json ./
-RUN npm install --no-audit --no-fund --legacy-peer-deps
-COPY nexus-packages/packages/core/tsconfig.json ./
-COPY nexus-packages/packages/core/tsup.config.ts ./
-COPY nexus-packages/packages/core/src ./src
-RUN npm run build
+# --- Install deps (kræver GITHUB_TOKEN for @bimo-dk/nexus-core fra GH Packages) ---
+ARG GITHUB_TOKEN
+COPY package*.json .npmrc ./
+RUN if [ -z "$GITHUB_TOKEN" ]; then echo "GITHUB_TOKEN build-arg er påkrævet (read:packages)"; exit 1; fi && \
+    GITHUB_TOKEN=${GITHUB_TOKEN} npm install --no-audit --no-fund --legacy-peer-deps
 
-# ----- Build manager -----
-WORKDIR /workspace/nexus-portal
-COPY nexus-portal/package*.json ./
-RUN npm install --no-audit --no-fund --legacy-peer-deps
-
+# --- Build Angular ---
 ARG NEXUS_TOKEN=dev-token-change-in-production
-
-COPY nexus-portal/tsconfig*.json nexus-portal/angular.json nexus-portal/federation.config.js ./
-COPY nexus-portal/src ./src
-COPY nexus-portal/public ./public
+COPY tsconfig*.json angular.json federation.config.js ./
+COPY src ./src
+COPY public ./public
 
 RUN node -e "const fs=require('fs'); const p='src/environments/environment.prod.ts'; let c=fs.readFileSync(p,'utf8'); c=c.replace('NEXUS_TOKEN_PLACEHOLDER', process.env.NEXUS_TOKEN || 'dev-token'); fs.writeFileSync(p,c);" \
   NEXUS_TOKEN=${NEXUS_TOKEN}
@@ -31,13 +31,13 @@ RUN node -e "const fs=require('fs'); const p='src/environments/environment.prod.
 RUN npm run build:prod
 
 # ============================================================================
-# Nginx runtime
+# Nginx runtime — kun statiske filer, ingen GITHUB_TOKEN
 # ============================================================================
 FROM nginx:alpine
 RUN apk add --no-cache wget
 
-COPY --from=builder /workspace/nexus-portal/dist/manager/browser /usr/share/nginx/html
-COPY nexus-portal/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist/manager/browser /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
