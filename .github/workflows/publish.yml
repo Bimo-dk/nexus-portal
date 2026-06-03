@@ -45,10 +45,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-# Image bygges med default NEXUS_TOKEN placeholder. Deployere overrider via:
-#   docker build --build-arg NEXUS_TOKEN=<deres-token> -t custom-portal .
-# eller via runtime config-injection (anbefalet for produktion).
+# Image is built with a default NEXUS_TOKEN placeholder. Deployers override via:
+#   docker build --build-arg NEXUS_TOKEN=<their-token> -t custom-portal .
+# or via runtime config injection (recommended for production).
 #
-# Resultatet:
+# Result:
 #   docker pull ghcr.io/bimo-dk/nexus-portal:latest
 #   docker pull ghcr.io/bimo-dk/nexus-portal:sha-<commit>

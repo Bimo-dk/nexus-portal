@@ -1,4 +1,4 @@
-// MIGRATION: re-eksport fra @bimo-dk/nexus-core. Ny kode bør importere direkte fra '@bimo-dk/nexus-core'.
+// MIGRATION: re-export from @bimo-dk/nexus-core. New code should import directly from '@bimo-dk/nexus-core'.
 export type {
   RemoteHealthStatus,
   RemoteConfig,

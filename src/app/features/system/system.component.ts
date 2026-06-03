@@ -34,10 +34,10 @@ const KIND_LABELS: Record<ServiceKind, string> = {
       <header>
         <div>
           <h1>System</h1>
-          <p>Live status for alle Bimo-Nexus services. Auto-refresh hvert 10. sekund.</p>
+          <p>Live status for all Bimo-Nexus services. Auto-refresh every 10 seconds.</p>
         </div>
         <button mat-raised-button color="primary" (click)="refreshNow()" [disabled]="loading()">
-          <mat-icon>refresh</mat-icon> Refresh nu
+          <mat-icon>refresh</mat-icon> Refresh now
         </button>
       </header>
 
@@ -114,12 +114,12 @@ const KIND_LABELS: Record<ServiceKind, string> = {
           </section>
         }
       } @else if (loading()) {
-        <p>Indlæser system status...</p>
+        <p>Loading system status...</p>
       } @else if (error()) {
         <mat-card class="error-card">
           <mat-card-content>
-            <p><strong>Fejl:</strong> {{ error() }}</p>
-            <button mat-button color="primary" (click)="refreshNow()">Prøv igen</button>
+            <p><strong>Error:</strong> {{ error() }}</p>
+            <button mat-button color="primary" (click)="refreshNow()">Try again</button>
           </mat-card-content>
         </mat-card>
       }

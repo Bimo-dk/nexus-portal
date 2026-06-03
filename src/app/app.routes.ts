@@ -9,8 +9,29 @@ export const routes: Routes = [
   },
   {
     path: 'system',
-    loadComponent: () =>
-      import('./features/system/system.component').then((m) => m.SystemComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'health' },
+      {
+        path: 'health',
+        loadComponent: () =>
+          import('./features/system/system.component').then((m) => m.SystemComponent),
+      },
+      {
+        path: 'config',
+        loadComponent: () =>
+          import('./features/system/config.component').then((m) => m.ConfigComponent),
+      },
+      {
+        path: 'logs',
+        loadComponent: () =>
+          import('./features/system/logs.component').then((m) => m.LogsComponent),
+      },
+      {
+        path: 'metrics',
+        loadComponent: () =>
+          import('./features/system/metrics.component').then((m) => m.MetricsComponent),
+      },
+    ],
   },
   {
     path: 'remotes',

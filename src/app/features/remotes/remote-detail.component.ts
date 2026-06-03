@@ -38,7 +38,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
   template: `
     <div class="page">
       <header>
-        <a mat-button routerLink="/remotes"><mat-icon>arrow_back</mat-icon> Tilbage til liste</a>
+        <a mat-button routerLink="/remotes"><mat-icon>arrow_back</mat-icon> Back to list</a>
         <h1>{{ remote()?.name ?? 'Loading...' }}</h1>
       </header>
 
@@ -46,13 +46,13 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
         <div class="grid">
           <mat-card>
             <mat-card-header>
-              <mat-card-title>Konfiguration</mat-card-title>
-              <mat-card-subtitle>Tilføjet {{ r.addedAt | date: 'medium' }}</mat-card-subtitle>
+              <mat-card-title>Configuration</mat-card-title>
+              <mat-card-subtitle>Added {{ r.addedAt | date: 'medium' }}</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
               <form [formGroup]="form" (ngSubmit)="onSave()" class="form-grid">
                 <mat-form-field appearance="outline">
-                  <mat-label>URL til remoteEntry.json</mat-label>
+                  <mat-label>URL to remoteEntry.json</mat-label>
                   <input matInput formControlName="url" />
                 </mat-form-field>
 
@@ -66,11 +66,11 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
                   <input matInput formControlName="routePath" />
                 </mat-form-field>
 
-                <mat-checkbox formControlName="enabled">Aktiveret</mat-checkbox>
+                <mat-checkbox formControlName="enabled">Enabled</mat-checkbox>
 
                 <div class="actions">
                   <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || form.pristine || saving">
-                    {{ saving ? 'Gemmer...' : 'Gem ændringer' }}
+                    {{ saving ? 'Saving...' : 'Save changes' }}
                   </button>
                 </div>
               </form>
@@ -80,7 +80,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
           <mat-card>
             <mat-card-header>
               <mat-card-title>Live status</mat-card-title>
-              <mat-card-subtitle>Health-check hvert 10. sekund</mat-card-subtitle>
+              <mat-card-subtitle>Health check every 10 seconds</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
               <div class="status-row">
@@ -92,24 +92,24 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
                   <span class="rt">{{ responseTime() | number: '1.0-0' }} ms</span>
                 }
               </div>
-              <p class="last">Sidst tjekket: {{ lastChecked() | date: 'mediumTime' }}</p>
+              <p class="last">Last checked: {{ lastChecked() | date: 'mediumTime' }}</p>
 
               <mat-divider />
 
-              <h3>Farlige handlinger</h3>
+              <h3>Dangerous actions</h3>
               <div class="danger-actions">
                 <button mat-stroked-button color="primary" (click)="onRedeploy()">
                   <mat-icon>refresh</mat-icon> Redeploy
                 </button>
                 <button mat-stroked-button color="warn" (click)="onDelete()">
-                  <mat-icon>delete</mat-icon> Slet remote
+                  <mat-icon>delete</mat-icon> Delete remote
                 </button>
               </div>
             </mat-card-content>
           </mat-card>
         </div>
       } @else {
-        <p>Indlæser...</p>
+        <p>Loading...</p>
       }
     </div>
   `,
@@ -206,9 +206,9 @@ export class RemoteDetailComponent implements OnInit {
     if (!r) return;
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: `Slet "${r.name}"?`,
-        message: `Remote fjernes permanent fra registry og host afregistrerer ruten.`,
-        confirmLabel: 'Slet',
+        title: `Delete "${r.name}"?`,
+        message: `Remote will be removed permanently from the registry and the host will deregister the route.`,
+        confirmLabel: 'Delete',
       },
     });
     ref.afterClosed().subscribe((confirmed) => {

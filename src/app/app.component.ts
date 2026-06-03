@@ -35,9 +35,21 @@ import { MatIconModule } from '@angular/material/icon';
             <mat-icon matListItemIcon>dashboard</mat-icon>
             <span matListItemTitle>Dashboard</span>
           </a>
-          <a mat-list-item routerLink="/system" routerLinkActive="active">
+          <a mat-list-item routerLink="/system/health" routerLinkActive="active">
             <mat-icon matListItemIcon>monitor_heart</mat-icon>
-            <span matListItemTitle>System</span>
+            <span matListItemTitle>System health</span>
+          </a>
+          <a mat-list-item routerLink="/system/config" routerLinkActive="active">
+            <mat-icon matListItemIcon>settings</mat-icon>
+            <span matListItemTitle>Configuration</span>
+          </a>
+          <a mat-list-item routerLink="/system/logs" routerLinkActive="active">
+            <mat-icon matListItemIcon>article</mat-icon>
+            <span matListItemTitle>Logs</span>
+          </a>
+          <a mat-list-item routerLink="/system/metrics" routerLinkActive="active">
+            <mat-icon matListItemIcon>insights</mat-icon>
+            <span matListItemTitle>Metrics</span>
           </a>
           <a mat-list-item routerLink="/remotes" routerLinkActive="active">
             <mat-icon matListItemIcon>cloud</mat-icon>

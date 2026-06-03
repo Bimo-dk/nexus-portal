@@ -37,7 +37,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
 
       <table mat-table [dataSource]="remotes()">
         <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>Navn</th>
+          <th mat-header-cell *matHeaderCellDef>Name</th>
           <td mat-cell *matCellDef="let r">
             <a [routerLink]="['/remotes', r.name]"><strong>{{ r.name }}</strong></a>
           </td>
@@ -71,9 +71,9 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
         </ng-container>
 
         <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Handlinger</th>
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let r" class="actions-cell">
-            <button mat-icon-button matTooltip="Health-check" (click)="checkHealth(r)">
+            <button mat-icon-button matTooltip="Health check" (click)="checkHealth(r)">
               <mat-icon>monitor_heart</mat-icon>
             </button>
             <a mat-icon-button matTooltip="Edit" [routerLink]="['/remotes', r.name]">
@@ -90,7 +90,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
       </table>
 
       @if (remotes().length === 0) {
-        <p class="empty">Ingen remotes. Tilføj én med knappen ovenfor.</p>
+        <p class="empty">No remotes. Add one with the button above.</p>
       }
     </div>
   `,
@@ -132,9 +132,9 @@ export class RemoteListComponent implements OnInit {
   onDelete(remote: RemoteConfig): void {
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: `Slet "${remote.name}"?`,
-        message: `Remote "${remote.name}" fjernes permanent fra registry. Host vil afregistrere ruten /${remote.routePath} ved næste polling.`,
-        confirmLabel: 'Slet',
+        title: `Delete "${remote.name}"?`,
+        message: `Remote "${remote.name}" will be removed permanently from the registry. The host will deregister the route /${remote.routePath} on the next poll.`,
+        confirmLabel: 'Delete',
       },
     });
     ref.afterClosed().subscribe((confirmed) => {

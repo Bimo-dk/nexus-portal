@@ -26,7 +26,7 @@ import { ManagerService } from '../services/manager.service';
   template: `
     <div class="page">
       <header>
-        <a mat-button routerLink="/remotes"><mat-icon>arrow_back</mat-icon> Tilbage til liste</a>
+        <a mat-button routerLink="/remotes"><mat-icon>arrow_back</mat-icon> Back to list</a>
         <h1>Add remote</h1>
       </header>
 
@@ -34,24 +34,24 @@ import { ManagerService } from '../services/manager.service';
         <mat-card-content>
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form-grid">
             <mat-form-field appearance="outline">
-              <mat-label>Navn</mat-label>
+              <mat-label>Name</mat-label>
               <input matInput formControlName="name" placeholder="remoteThree" />
-              <mat-hint>camelCase, starter med et bogstav</mat-hint>
+              <mat-hint>camelCase, must start with a letter</mat-hint>
               @if (form.controls.name.touched && form.controls.name.errors) {
                 <mat-error>
-                  @if (form.controls.name.errors['required']) { Navn er påkrævet. }
-                  @if (form.controls.name.errors['pattern']) { Skal være camelCase (a-z, A-Z, 0-9). }
+                  @if (form.controls.name.errors['required']) { Name is required. }
+                  @if (form.controls.name.errors['pattern']) { Must be camelCase (a-z, A-Z, 0-9). }
                 </mat-error>
               }
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>URL til remoteEntry.json</mat-label>
+              <mat-label>URL to remoteEntry.json</mat-label>
               <input matInput formControlName="url" placeholder="http://localhost:6680/remoteEntry.json" />
               @if (form.controls.url.touched && form.controls.url.errors) {
                 <mat-error>
-                  @if (form.controls.url.errors['required']) { URL er påkrævet. }
-                  @if (form.controls.url.errors['pattern']) { Skal være en gyldig http(s) URL. }
+                  @if (form.controls.url.errors['required']) { URL is required. }
+                  @if (form.controls.url.errors['pattern']) { Must be a valid http(s) URL. }
                 </mat-error>
               }
             </mat-form-field>
@@ -59,27 +59,27 @@ import { ManagerService } from '../services/manager.service';
             <mat-form-field appearance="outline">
               <mat-label>Exposed module</mat-label>
               <input matInput formControlName="exposedModule" />
-              <mat-hint>Standard: ./RemoteEntry</mat-hint>
+              <mat-hint>Default: ./RemoteEntry</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>Route path</mat-label>
               <input matInput formControlName="routePath" placeholder="remote-three" />
-              <mat-hint>kebab-case URL i host</mat-hint>
+              <mat-hint>kebab-case URL in host</mat-hint>
               @if (form.controls.routePath.touched && form.controls.routePath.errors) {
                 <mat-error>
-                  @if (form.controls.routePath.errors['required']) { Route path er påkrævet. }
-                  @if (form.controls.routePath.errors['pattern']) { Skal være kebab-case (a-z, 0-9, -). }
+                  @if (form.controls.routePath.errors['required']) { Route path is required. }
+                  @if (form.controls.routePath.errors['pattern']) { Must be kebab-case (a-z, 0-9, -). }
                 </mat-error>
               }
             </mat-form-field>
 
-            <mat-checkbox formControlName="enabled">Aktiver remote med det samme</mat-checkbox>
+            <mat-checkbox formControlName="enabled">Enable remote immediately</mat-checkbox>
 
             <div class="actions">
-              <a mat-button routerLink="/remotes">Annullér</a>
+              <a mat-button routerLink="/remotes">Cancel</a>
               <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
-                @if (submitting) { Gemmer... } @else { Gem remote }
+                @if (submitting) { Saving... } @else { Save remote }
               </button>
             </div>
           </form>

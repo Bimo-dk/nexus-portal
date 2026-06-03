@@ -24,7 +24,7 @@ export const correlationIdInterceptor: HttpInterceptorFn = (req, next) => {
       error: (err: unknown) => {
         if (err instanceof HttpErrorResponse) {
           console.error(
-            `[http] FAILED ${req.method} ${req.url} → ${err.status} (X-Request-ID=${correlationId})`,
+            `[http] FAILED ${req.method} ${req.url} -> ${err.status} (X-Request-ID=${correlationId})`,
             err.error,
           );
         }

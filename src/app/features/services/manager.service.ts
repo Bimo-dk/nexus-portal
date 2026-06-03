@@ -23,56 +23,79 @@ export class ManagerService {
   getSystemHealth(fresh = false): Observable<SystemHealthSnapshot> {
     const url = fresh ? `${this.systemUrl}/health?fresh=true` : `${this.systemUrl}/health`;
     return this.http.get<SystemHealthSnapshot>(url).pipe(
-      catchError((err) => this.onError(err, 'Kunne ikke hente system health')),
+      catchError((err) => this.onError(err, 'Failed to fetch system health')),
+    );
+  }
+
+  getRegistryConfig(): Observable<import('../../types/observability').RegistryConfig> {
+    return this.http.get<import('../../types/observability').RegistryConfig>(`${this.systemUrl}/config`).pipe(
+      catchError((err) => this.onError(err, 'Failed to fetch registry config')),
+    );
+  }
+
+  getLogs(opts: { since?: string; limit?: number; level?: import('../../types/observability').LogLevel } = {}): Observable<import('../../types/observability').LogsResponse> {
+    const params: string[] = [];
+    if (opts.since) params.push(`since=${encodeURIComponent(opts.since)}`);
+    if (opts.limit) params.push(`limit=${opts.limit}`);
+    if (opts.level) params.push(`level=${opts.level}`);
+    const qs = params.length ? `?${params.join('&')}` : '';
+    return this.http.get<import('../../types/observability').LogsResponse>(`${this.systemUrl}/logs${qs}`).pipe(
+      catchError((err) => this.onError(err, 'Failed to fetch logs')),
+    );
+  }
+
+  getMetrics(): Observable<import('../../types/observability').MetricsSnapshot> {
+    return this.http.get<import('../../types/observability').MetricsSnapshot>(`${this.systemUrl}/metrics`).pipe(
+      catchError((err) => this.onError(err, 'Failed to fetch metrics')),
     );
   }
 
   getRemotes(): Observable<RegistryResponse> {
-    return this.http.get<RegistryResponse>(this.baseUrl).pipe(catchError((err) => this.onError(err, 'Kunne ikke hente remotes')));
+    return this.http.get<RegistryResponse>(this.baseUrl).pipe(catchError((err) => this.onError(err, 'Failed to fetch remotes')));
   }
 
   getRemote(name: string): Observable<RemoteConfig> {
     return this.http.get<RemoteConfig>(`${this.baseUrl}/${encodeURIComponent(name)}`).pipe(
-      catchError((err) => this.onError(err, `Kunne ikke hente remote "${name}"`)),
+      catchError((err) => this.onError(err, `Failed to fetch remote "${name}"`)),
     );
   }
 
   addRemote(config: AddRemoteRequest): Observable<RemoteConfig> {
     return this.http.post<RemoteConfig>(this.baseUrl, config).pipe(
       map((created) => {
-        this.successSnack(`Remote "${created.name}" tilføjet`);
+        this.successSnack(`Remote "${created.name}" added`);
         return created;
       }),
-      catchError((err) => this.onError(err, 'Kunne ikke tilføje remote')),
+      catchError((err) => this.onError(err, 'Failed to add remote')),
     );
   }
 
   updateRemote(name: string, patch: UpdateRemoteRequest): Observable<RemoteConfig> {
     return this.http.put<RemoteConfig>(`${this.baseUrl}/${encodeURIComponent(name)}`, patch).pipe(
       map((updated) => {
-        this.successSnack(`Remote "${updated.name}" opdateret`);
+        this.successSnack(`Remote "${updated.name}" updated`);
         return updated;
       }),
-      catchError((err) => this.onError(err, `Kunne ikke opdatere remote "${name}"`)),
+      catchError((err) => this.onError(err, `Failed to update remote "${name}"`)),
     );
   }
 
   deleteRemote(name: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${encodeURIComponent(name)}`).pipe(
       map(() => {
-        this.successSnack(`Remote "${name}" slettet`);
+        this.successSnack(`Remote "${name}" deleted`);
       }),
-      catchError((err) => this.onError(err, `Kunne ikke slette remote "${name}"`)),
+      catchError((err) => this.onError(err, `Failed to delete remote "${name}"`)),
     );
   }
 
   toggleRemote(name: string): Observable<RemoteConfig> {
     return this.http.post<RemoteConfig>(`${this.baseUrl}/${encodeURIComponent(name)}/toggle`, {}).pipe(
       map((updated) => {
-        this.successSnack(`Remote "${updated.name}" er nu ${updated.enabled ? 'aktiv' : 'deaktiveret'}`);
+        this.successSnack(`Remote "${updated.name}" is now ${updated.enabled ? 'enabled' : 'disabled'}`);
         return updated;
       }),
-      catchError((err) => this.onError(err, `Kunne ikke skifte tilstand på "${name}"`)),
+      catchError((err) => this.onError(err, `Failed to toggle state for "${name}"`)),
     );
   }
 
@@ -81,10 +104,10 @@ export class ManagerService {
       .post<{ accepted: boolean; remote: string; timestamp: string }>(`${this.baseUrl}/${encodeURIComponent(name)}/redeploy`, {})
       .pipe(
         map((res) => {
-          this.successSnack(`Redeploy-signal sendt for "${name}"`);
+          this.successSnack(`Redeploy signal sent for "${name}"`);
           return res;
         }),
-        catchError((err) => this.onError(err, `Kunne ikke sende redeploy for "${name}"`)),
+        catchError((err) => this.onError(err, `Failed to send redeploy for "${name}"`)),
       );
   }
 
@@ -135,6 +158,6 @@ export class ManagerService {
   }
 
   private errorSnack(message: string): void {
-    this.snack.open(message, 'Luk', { duration: 6000, panelClass: ['error-snack'] });
+    this.snack.open(message, 'Close', { duration: 6000, panelClass: ['error-snack'] });
   }
 }

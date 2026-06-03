@@ -28,7 +28,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
     <div class="page">
       <header>
         <h1>Nexus dashboard</h1>
-        <p>Auto-refresh hvert {{ refreshInterval / 1000 }}. sekund · sidst opdateret: {{ lastUpdated() | date: 'medium' }}</p>
+        <p>Auto-refresh every {{ refreshInterval / 1000 }} seconds · last updated: {{ lastUpdated() | date: 'medium' }}</p>
       </header>
 
       @if (loading() && remotes().length === 0) {
@@ -43,7 +43,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
           </mat-card>
           <mat-card>
             <mat-card-content>
-              <span class="label">Aktive</span>
+              <span class="label">Enabled</span>
               <strong>{{ enabledCount() }}</strong>
             </mat-card-content>
           </mat-card>
@@ -81,16 +81,16 @@ import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config
                 </span>
                 <p class="url">{{ r.url }}</p>
                 <p class="meta">
-                  <strong>Enabled:</strong> {{ r.enabled ? 'Ja' : 'Nej' }}<br />
-                  <strong>Tilføjet:</strong> {{ r.addedAt | date: 'short' }}
+                  <strong>Enabled:</strong> {{ r.enabled ? 'Yes' : 'No' }}<br />
+                  <strong>Added:</strong> {{ r.addedAt | date: 'short' }}
                 </p>
               </mat-card-content>
               <mat-card-actions>
-                <a mat-button [routerLink]="['/remotes', r.name]">Detaljer</a>
+                <a mat-button [routerLink]="['/remotes', r.name]">Details</a>
               </mat-card-actions>
             </mat-card>
           } @empty {
-            <p class="empty">Ingen remotes registreret. Tilføj én under <strong>Remotes → Add</strong>.</p>
+            <p class="empty">No remotes registered. Add one under <strong>Remotes → Add</strong>.</p>
           }
         </section>
       }
