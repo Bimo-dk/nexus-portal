@@ -1,0 +1,36 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+.mat-mdc-snack-bar-container.error-snack {
+  --mdc-snackbar-container-color: #b91c1c;
+  --mdc-snackbar-supporting-text-color: white;
+  --mat-snack-bar-button-color: white;
+}
+
+.mat-mdc-snack-bar-container.success-snack {
+  --mdc-snackbar-container-color: #15803d;
+  --mdc-snackbar-supporting-text-color: white;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-pill.healthy { background: #dcfce7; color: #14532d; }
+.status-pill.degraded { background: #fef3c7; color: #78350f; }
+.status-pill.down { background: #fee2e2; color: #7f1d1d; }
+.status-pill.unknown { background: #f1f5f9; color: #475569; }
+.status-pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
