@@ -5,7 +5,7 @@
 # GitHub Packages via .npmrc, ikke fra lokal nexus-packages sti.
 #
 # Build:
-#   docker build --build-arg GITHUB_TOKEN=ghp_xxx -t nexus-portal:local .
+#   docker build --build-arg NODE_AUTH_TOKEN=ghp_xxx -t nexus-portal:local .
 # Run:
 #   docker run --rm -p 8669:80 nexus-portal:local
 # ============================================================================
@@ -13,11 +13,11 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# --- Install deps (kræver GITHUB_TOKEN for @bimo-dk/nexus-core fra GH Packages) ---
-ARG GITHUB_TOKEN
+# --- Install deps (kræver NODE_AUTH_TOKEN for @bimo-dk/nexus-core fra GH Packages) ---
+ARG NODE_AUTH_TOKEN
 COPY package*.json .npmrc ./
-RUN if [ -z "$GITHUB_TOKEN" ]; then echo "GITHUB_TOKEN build-arg er påkrævet (read:packages)"; exit 1; fi && \
-    GITHUB_TOKEN=${GITHUB_TOKEN} npm install --no-audit --no-fund --legacy-peer-deps
+RUN if [ -z "$NODE_AUTH_TOKEN" ]; then echo "NODE_AUTH_TOKEN build-arg er påkrævet (read:packages)"; exit 1; fi && \
+    NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} npm install --no-audit --no-fund --legacy-peer-deps
 
 # --- Build Angular ---
 ARG NEXUS_TOKEN=dev-token-change-in-production
