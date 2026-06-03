@@ -26,6 +26,7 @@ import { MatIconModule } from '@angular/material/icon';
       <a mat-button routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
       <a mat-button routerLink="/system" routerLinkActive="active">System</a>
       <a mat-button routerLink="/remotes" routerLinkActive="active">Remotes</a>
+      <a mat-button routerLink="/catalog" routerLinkActive="active">Catalog</a>
     </mat-toolbar>
 
     <mat-sidenav-container class="container">
@@ -58,6 +59,10 @@ import { MatIconModule } from '@angular/material/icon';
           <a mat-list-item routerLink="/remotes/new" routerLinkActive="active">
             <mat-icon matListItemIcon>add_circle</mat-icon>
             <span matListItemTitle>Add remote</span>
+          </a>
+          <a mat-list-item routerLink="/catalog" routerLinkActive="active">
+            <mat-icon matListItemIcon>widgets</mat-icon>
+            <span matListItemTitle>Component Catalog</span>
           </a>
         </mat-nav-list>
       </mat-sidenav>

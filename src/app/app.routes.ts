@@ -34,6 +34,11 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'catalog',
+    loadComponent: () =>
+      import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
+  },
+  {
     path: 'remotes',
     children: [
       {
