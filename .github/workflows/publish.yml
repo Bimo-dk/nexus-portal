@@ -42,14 +42,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-            NEXUS_TOKEN=${{ secrets.NEXUS_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+# Image bygges med default NEXUS_TOKEN placeholder. Deployere overrider via:
+#   docker build --build-arg NEXUS_TOKEN=<deres-token> -t custom-portal .
+# eller via runtime config-injection (anbefalet for produktion).
+#
 # Resultatet:
 #   docker pull ghcr.io/bimo-dk/nexus-portal:latest
 #   docker pull ghcr.io/bimo-dk/nexus-portal:sha-<commit>
-#
-# Krævet på repo: Settings → Secrets → Actions:
-#   - GITHUB_TOKEN  (auto-provisioned, har packages:read for @bimo-dk scope)
-#   - NEXUS_TOKEN   (din valgte token-værdi for X-Nexus-Token i prod)
