@@ -1,11 +1,10 @@
+# syntax=docker/dockerfile:1.7
 # ============================================================================
 # nexus-portal — admin UI til Bimo-Nexus registry
+# Bruger BuildKit secrets så NODE_AUTH_TOKEN IKKE leakes i build-logs.
 #
-# Bygges fra repoets EGEN rod (./nexus-portal context) — pakker hentes fra
-# GitHub Packages via .npmrc, ikke fra lokal nexus-packages sti.
-#
-# Build:
-#   docker build --build-arg NODE_AUTH_TOKEN=ghp_xxx -t nexus-portal:local .
+# Build manuelt:
+#   docker build --secret id=node_auth_token,env=NODE_AUTH_TOKEN -t nexus-portal:local .
 # Run:
 #   docker run --rm -p 8669:80 nexus-portal:local
 # ============================================================================
@@ -13,13 +12,12 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# --- Install deps (kræver NODE_AUTH_TOKEN for @bimo-dk/nexus-core fra GH Packages) ---
-ARG NODE_AUTH_TOKEN
 COPY package*.json .npmrc ./
-RUN if [ -z "$NODE_AUTH_TOKEN" ]; then echo "NODE_AUTH_TOKEN build-arg er påkrævet (read:packages)"; exit 1; fi && \
-    NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} npm install --no-audit --no-fund --legacy-peer-deps
 
-# --- Build Angular ---
+RUN --mount=type=secret,id=node_auth_token,required=true \
+    NODE_AUTH_TOKEN=$(cat /run/secrets/node_auth_token) \
+    npm install --no-audit --no-fund --legacy-peer-deps
+
 ARG NEXUS_TOKEN=dev-token-change-in-production
 COPY tsconfig*.json angular.json federation.config.js ./
 COPY src ./src
@@ -31,7 +29,7 @@ RUN node -e "const fs=require('fs'); const p='src/environments/environment.prod.
 RUN npm run build:prod
 
 # ============================================================================
-# Nginx runtime — kun statiske filer, ingen GITHUB_TOKEN
+# Nginx runtime
 # ============================================================================
 FROM nginx:alpine
 RUN apk add --no-cache wget
