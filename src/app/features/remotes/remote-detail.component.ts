@@ -14,6 +14,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { interval, startWith, switchMap } from 'rxjs';
 import { ManagerService } from '../services/manager.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
+import { NEXUS_DEFAULTS } from '@bimo-dk/nexus-core';
 import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
 
 @Component({
@@ -80,7 +81,7 @@ import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
           <mat-card>
             <mat-card-header>
               <mat-card-title>Live status</mat-card-title>
-              <mat-card-subtitle>Health check every 10 seconds</mat-card-subtitle>
+              <mat-card-subtitle>Health check every 30 seconds</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
               <div class="status-row">
@@ -173,14 +174,19 @@ export class RemoteDetailComponent implements OnInit {
   }
 
   private startHealthPolling(url: string): void {
-    interval(10000)
-      .pipe(startWith(0), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.manager.checkHealth(url).subscribe((res) => {
+    interval(NEXUS_DEFAULTS.HEALTH_POLL_INTERVAL_MS)
+      .pipe(
+        startWith(0),
+        switchMap(() => this.manager.checkHealth(url)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (res) => {
           this.health.set(res.status);
           this.responseTime.set(res.responseTimeMs);
           this.lastChecked.set(new Date());
-        });
+        },
+        error: () => {},
       });
   }
 
