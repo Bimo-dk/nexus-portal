@@ -4,7 +4,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { routes } from './app.routes';
 import { nexusAuthInterceptor } from './interceptors/nexus-auth.interceptor';
-import { correlationIdInterceptor } from './interceptors/correlation-id.interceptor';
+import { correlationIdInterceptor } from '@bimo-dk/nexus-runtime';
 
 export const appConfig: ApplicationConfig = {
   providers: [

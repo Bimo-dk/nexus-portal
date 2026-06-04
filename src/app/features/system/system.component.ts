@@ -8,7 +8,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { interval, startWith, switchMap } from 'rxjs';
 import { ManagerService } from '../services/manager.service';
 import type { ServiceHealth, SystemHealthSnapshot, ServiceKind } from '../../types/system-health';
-import type { RemoteHealthStatus } from '../../types/remote-config';
+import type { RemoteHealthStatus } from '@bimo-dk/nexus-core';
 
 const KIND_LABELS: Record<ServiceKind, string> = {
   registry: 'Registry',

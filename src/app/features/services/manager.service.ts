@@ -10,7 +10,7 @@ import type {
   RemoteConfig,
   RemoteHealthStatus,
   UpdateRemoteRequest,
-} from '../../types/remote-config';
+} from '@bimo-dk/nexus-core';
 import type { SystemHealthSnapshot } from '../../types/system-health';
 
 @Injectable({ providedIn: 'root' })

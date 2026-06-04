@@ -14,7 +14,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { interval, startWith, switchMap } from 'rxjs';
 import { ManagerService } from '../services/manager.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
-import type { RemoteConfig, RemoteHealthStatus } from '../../types/remote-config';
+import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
 
 @Component({
   selector: 'app-remote-detail',
