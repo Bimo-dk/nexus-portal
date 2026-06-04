@@ -22,6 +22,7 @@
     "@angular/router": "^19.0.0",
     "@angular-architects/native-federation": "^19.0.13",
     "@bimo-dk/nexus-core": "^0.1.0",
+    "@bimo-dk/nexus-runtime": "^0.2.0",
     "es-module-shims": "^1.10.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
