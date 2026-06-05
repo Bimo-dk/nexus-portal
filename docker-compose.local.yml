@@ -1,0 +1,12 @@
+# Override for building portal from local source.
+# Requires Verdaccio running on host port 4873 (start nexus-test stack first).
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+
+services:
+  portal:
+    image: ""
+    build:
+      context: .
+      dockerfile: Dockerfile.local

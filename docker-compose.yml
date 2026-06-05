@@ -1,0 +1,67 @@
+name: nexus-portal
+
+# Brings up the portal admin UI together with the registry it manages.
+#
+# Quick start:
+#   cp .env.example .env        # fill in SESSION_SECRET and NEXUS_TOKEN
+#   docker compose up -d
+#
+# Portal: http://localhost:8669
+# Registry: http://localhost:8670 (internal; exposed for debugging)
+#
+# First login: admin / value of NEXUS_INITIAL_PASSWORD (default: nexus-admin)
+# Change password immediately after first login.
+#
+# To rebuild from local source (requires nexus-test Verdaccio stack running):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+
+services:
+  registry:
+    image: ghcr.io/bimo-dk/nexus-registry:latest
+    container_name: portal-registry
+    ports:
+      - "8670:8670"
+    environment:
+      PORT: "8670"
+      NEXUS_TOKEN: ${NEXUS_TOKEN}
+      ALLOWED_ORIGINS: "http://localhost:8669"
+    volumes:
+      - registry-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8670/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  portal:
+    image: ghcr.io/bimo-dk/nexus-portal:latest
+    container_name: portal-ui
+    ports:
+      - "8669:80"
+    environment:
+      NODE_ENV: production
+      PORT: "80"
+      NEXUS_TOKEN: ${NEXUS_TOKEN}
+      REGISTRY_URL: http://registry:8670
+      GATEWAY_URL: ${GATEWAY_URL:-}
+      SESSION_SECRET: ${SESSION_SECRET}
+      NEXUS_INITIAL_PASSWORD: ${NEXUS_INITIAL_PASSWORD:-nexus-admin}
+      DATABASE_PATH: /data/portal.db
+    volumes:
+      - portal-data:/data
+    depends_on:
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  registry-data:
+  portal-data:
