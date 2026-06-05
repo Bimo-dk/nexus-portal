@@ -163,7 +163,7 @@ export class GateListComponent implements OnInit {
 
   readonly filteredGates = computed(() => {
     const id = this._selectedHostId();
-    return id ? this.gates().filter((g) => g.host_id === id) : this.gates();
+    return id ? this.gates().filter((g) => g.hostId === id) : this.gates();
   });
 
   ngOnInit(): void {
@@ -176,7 +176,7 @@ export class GateListComponent implements OnInit {
     this.events.gateChanged$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((event) => {
-        const { gate, trigger, old_host_id, new_host_id } = event;
+        const { gate, trigger, oldHostId, newHostId } = event;
         this.gates.update((list) => {
           const idx = list.findIndex((g) => g.id === gate.id);
           if (idx >= 0) {
@@ -187,7 +187,7 @@ export class GateListComponent implements OnInit {
           return [...list, gate];
         });
 
-        if (trigger === 'host_reassigned' && old_host_id && new_host_id) {
+        if (trigger === 'host_reassigned' && oldHostId && newHostId) {
           this.snack.open(
             `Gate "${gate.name}" was reassigned to a new host`,
             'OK',
