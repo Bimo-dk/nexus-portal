@@ -12,5 +12,12 @@ module.exports = withNativeFederation({
     'rxjs/fetch',
     'rxjs/testing',
     'rxjs/webSocket',
+    'fastify',
+    '@fastify/cookie',
+    '@fastify/static',
+    '@fastify/websocket',
+    'better-sqlite3',
+    'bcrypt',
+    'ws',
   ],
 });

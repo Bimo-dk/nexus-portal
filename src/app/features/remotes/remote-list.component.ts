@@ -17,6 +17,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { ManagerService } from '../services/manager.service';
+import { AuthService } from '../auth/auth.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import type { RemoteHealthStatus } from '@bimo-dk/nexus-core';
 import type { Host, PortalRemoteConfig } from '../../types/platform';
@@ -42,10 +43,12 @@ import type { Host, PortalRemoteConfig } from '../../types/platform';
     <div class="page">
       <header>
         <h1>Remotes</h1>
-        <a mat-raised-button color="primary" routerLink="/remotes/new">
-          <mat-icon>add</mat-icon>
-          Add remote
-        </a>
+        @if (canEdit()) {
+          <a mat-raised-button color="primary" routerLink="/remotes/new">
+            <mat-icon>add</mat-icon>
+            Add remote
+          </a>
+        }
       </header>
 
       <div class="toolbar">
@@ -98,7 +101,11 @@ import type { Host, PortalRemoteConfig } from '../../types/platform';
         <ng-container matColumnDef="enabled">
           <th mat-header-cell *matHeaderCellDef>Enabled</th>
           <td mat-cell *matCellDef="let r">
-            <mat-slide-toggle [checked]="r.enabled" (change)="onToggle(r)" />
+            <mat-slide-toggle
+              [checked]="r.enabled"
+              [disabled]="!canEdit()"
+              (change)="onToggle(r)"
+            />
           </td>
         </ng-container>
 
@@ -108,12 +115,18 @@ import type { Host, PortalRemoteConfig } from '../../types/platform';
             <button mat-icon-button matTooltip="Health check" (click)="checkHealth(r)">
               <mat-icon>monitor_heart</mat-icon>
             </button>
-            <a mat-icon-button matTooltip="Edit" [routerLink]="['/remotes', r.name]">
-              <mat-icon>edit</mat-icon>
+            <a
+              mat-icon-button
+              [matTooltip]="canEdit() ? 'Edit' : 'View'"
+              [routerLink]="['/remotes', r.name]"
+            >
+              <mat-icon>{{ canEdit() ? 'edit' : 'visibility' }}</mat-icon>
             </a>
-            <button mat-icon-button matTooltip="Delete" color="warn" (click)="onDelete(r)">
-              <mat-icon>delete</mat-icon>
-            </button>
+            @if (canEdit()) {
+              <button mat-icon-button matTooltip="Delete" color="warn" (click)="onDelete(r)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
           </td>
         </ng-container>
 
@@ -152,7 +165,9 @@ import type { Host, PortalRemoteConfig } from '../../types/platform';
 export class RemoteListComponent implements OnInit {
   private readonly manager = inject(ManagerService);
   private readonly dialog = inject(MatDialog);
+  private readonly auth = inject(AuthService);
 
+  readonly canEdit = this.auth.isAdmin;
   readonly displayed = ['name', 'url', 'route', 'visibility', 'status', 'enabled', 'actions'];
   readonly remotes = signal<PortalRemoteConfig[]>([]);
   readonly hosts = signal<Host[]>([]);

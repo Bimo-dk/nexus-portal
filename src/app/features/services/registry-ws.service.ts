@@ -1,9 +1,7 @@
-import { Injectable, OnDestroy, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { Injectable, OnDestroy, effect, inject, signal } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { distinctUntilChanged, filter, map, skip } from 'rxjs/operators';
-import { SettingsService } from './settings.service';
+import { filter, map } from 'rxjs/operators';
+import { AuthService } from '../auth/auth.service';
 
 type AnyMessage = Record<string, unknown>;
 
@@ -14,27 +12,25 @@ export interface LogMessage {
 
 export type WsConnectionState = 'connected' | 'connecting' | 'disconnected';
 
+const AUTH_CLOSE_CODES = new Set([4401, 4403]);
+
 @Injectable({ providedIn: 'root' })
 export class RegistryWsService implements OnDestroy {
-  private readonly settings = inject(SettingsService);
+  private readonly auth = inject(AuthService);
   private socket: WebSocket | null = null;
   private readonly messages = new Subject<AnyMessage>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private delay = 1_000;
 
-  readonly connectionState = signal<WsConnectionState>('connecting');
+  readonly connectionState = signal<WsConnectionState>('disconnected');
 
   constructor() {
-    this.connect();
-
-    toObservable(this.settings.registryUrl)
-      .pipe(skip(1), distinctUntilChanged(), takeUntilDestroyed())
-      .subscribe(() => {
-        this.delay = 1_000;
-        this.connectionState.set('connecting');
-        this.socket?.close();
-      });
+    effect(() => {
+      const user = this.auth.user();
+      if (user) this.connect();
+      else this.disconnect();
+    });
   }
 
   messagesOfType<T>(type: string): Observable<T> {
@@ -46,12 +42,22 @@ export class RegistryWsService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
-    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
-    this.socket?.close();
+    this.disconnect();
     this.messages.complete();
   }
 
+  private disconnect(): void {
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.socket?.close();
+    this.socket = null;
+    this.connectionState.set('disconnected');
+  }
+
   private connect(): void {
+    if (this.socket && this.socket.readyState !== WebSocket.CLOSED) return;
     this.connectionState.set('connecting');
     try {
       this.socket = new WebSocket(this.wsUrl());
@@ -76,9 +82,12 @@ export class RegistryWsService implements OnDestroy {
       } catch { /* ignore malformed frames */ }
     });
 
-    this.socket.addEventListener('close', () => {
+    this.socket.addEventListener('close', (ev: CloseEvent) => {
       this.connectionState.set('disconnected');
-      if (!this.destroyed) this.scheduleReconnect();
+      if (this.destroyed) return;
+      if (AUTH_CLOSE_CODES.has(ev.code)) return;
+      if (!this.auth.user()) return;
+      this.scheduleReconnect();
     });
 
     this.socket.addEventListener('error', () => {
@@ -87,26 +96,17 @@ export class RegistryWsService implements OnDestroy {
   }
 
   private scheduleReconnect(): void {
+    if (this.reconnectTimer !== null) return;
     this.connectionState.set('connecting');
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       this.delay = Math.min(this.delay * 2, 30_000);
       this.connect();
     }, this.delay);
   }
 
   private wsUrl(): string {
-    const registryUrl = this.settings.registryUrl();
-    const token = encodeURIComponent(this.settings.nexusToken());
-
-    if (registryUrl.startsWith('http://') || registryUrl.startsWith('https://')) {
-      const u = new URL(registryUrl);
-      const proto = u.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsPath = u.pathname.replace(/\/+$/, '') + '/ws';
-      return `${proto}//${u.host}${wsPath}?token=${token}`;
-    }
-
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const path = registryUrl.replace(/\/+$/, '') + '/ws';
-    return `${proto}//${window.location.host}${path}?token=${token}`;
+    return `${proto}//${window.location.host}/api/ws`;
   }
 }

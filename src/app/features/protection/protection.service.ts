@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy, inject } from '@angular/core';
+import { Injectable, OnDestroy, effect, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
@@ -11,6 +11,7 @@ import {
   takeUntil,
   throwError,
 } from 'rxjs';
+import { AuthService } from '../auth/auth.service';
 import { SettingsService } from '../services/settings.service';
 import { RegistryWsService } from '../services/registry-ws.service';
 import type {
@@ -30,6 +31,7 @@ export class ProtectionService implements OnDestroy {
   private readonly snack = inject(MatSnackBar);
   private readonly ws = inject(RegistryWsService);
   private readonly settings = inject(SettingsService);
+  private readonly auth = inject(AuthService);
   private readonly destroy$ = new Subject<void>();
 
   private get configUrl() { return `${this.settings.registryUrl()}/config/gateway/protection`; }
@@ -48,7 +50,11 @@ export class ProtectionService implements OnDestroy {
 
   constructor() {
     this.listenForProtectionEvents();
-    this.startPolling();
+    effect(() => {
+      const user = this.auth.user();
+      if (user) this.startPolling();
+      else this.stopPolling();
+    });
   }
 
   ngOnDestroy(): void {
@@ -143,9 +149,16 @@ export class ProtectionService implements OnDestroy {
   }
 
   private startPolling(): void {
+    if (this.pollTimer !== null) return;
     this.pollTimer = setInterval(() => {
       this.loadStatus().subscribe();
     }, 30_000);
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer === null) return;
+    clearInterval(this.pollTimer);
+    this.pollTimer = null;
   }
 
   private parseGatewayMetrics(text: string): GatewayMetrics {
