@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -11,11 +18,14 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatCardModule } from '@angular/material/card';
 import { MatDivider } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSelectModule } from '@angular/material/select';
+import { MatRadioModule } from '@angular/material/radio';
 import { interval, startWith, switchMap } from 'rxjs';
 import { ManagerService } from '../services/manager.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { NEXUS_DEFAULTS } from '@bimo-dk/nexus-core';
-import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
+import type { RemoteHealthStatus } from '@bimo-dk/nexus-core';
+import type { Host, PortalRemoteConfig } from '../../types/platform';
 
 @Component({
   selector: 'app-remote-detail',
@@ -32,6 +42,8 @@ import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
     MatCardModule,
     MatDivider,
     MatDialogModule,
+    MatSelectModule,
+    MatRadioModule,
     DatePipe,
     DecimalPipe,
     UpperCasePipe,
@@ -66,6 +78,25 @@ import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
                   <mat-label>Route path</mat-label>
                   <input matInput formControlName="routePath" />
                 </mat-form-field>
+
+                <div class="visibility-group">
+                  <p class="field-label">Visibility</p>
+                  <mat-radio-group formControlName="visibilityType" class="radio-group">
+                    <mat-radio-button value="global">Global — visible to all hosts</mat-radio-button>
+                    <mat-radio-button value="host">Host-specific</mat-radio-button>
+                  </mat-radio-group>
+
+                  @if (form.controls.visibilityType.value === 'host') {
+                    <mat-form-field appearance="outline" class="host-select">
+                      <mat-label>Host</mat-label>
+                      <mat-select formControlName="visibilityHostId">
+                        @for (h of hosts(); track h.id) {
+                          <mat-option [value]="h.id">{{ h.name }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  }
+                </div>
 
                 <mat-checkbox formControlName="enabled">Enabled</mat-checkbox>
 
@@ -128,6 +159,10 @@ import type { RemoteConfig, RemoteHealthStatus } from '@bimo-dk/nexus-core';
       .last { margin: 0 0 16px; font-size: 12px; color: rgba(0,0,0,0.6); }
       h3 { margin: 16px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(0,0,0,0.6); }
       .danger-actions { display: flex; flex-direction: column; gap: 8px; }
+      .visibility-group { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+      .field-label { margin: 0; font-size: 12px; color: rgba(0,0,0,0.6); }
+      .radio-group { display: flex; flex-direction: column; gap: 4px; }
+      .host-select { width: 100%; }
     `,
   ],
 })
@@ -139,7 +174,8 @@ export class RemoteDetailComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly remote = signal<RemoteConfig | null>(null);
+  readonly remote = signal<PortalRemoteConfig | null>(null);
+  readonly hosts = signal<Host[]>([]);
   readonly health = signal<RemoteHealthStatus | null>(null);
   readonly responseTime = signal<number | null>(null);
   readonly lastChecked = signal<Date | null>(null);
@@ -149,6 +185,8 @@ export class RemoteDetailComponent implements OnInit {
     url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
     exposedModule: ['./RemoteEntry', [Validators.required]],
     routePath: ['', [Validators.required, Validators.pattern(/^[a-z0-9-]+$/)]],
+    visibilityType: ['global' as 'global' | 'host'],
+    visibilityHostId: [''],
     enabled: [true],
   });
 
@@ -158,14 +196,19 @@ export class RemoteDetailComponent implements OnInit {
       this.router.navigate(['/remotes']);
       return;
     }
+    this.manager.getHosts().subscribe({ next: (list) => this.hosts.set(list) });
     this.manager.getRemote(name).subscribe({
       next: (r) => {
-        this.remote.set(r);
+        const pr = r as PortalRemoteConfig;
+        this.remote.set(pr);
+        const isHostSpecific = pr.visibility && pr.visibility.startsWith('host:');
         this.form.patchValue({
           url: r.url,
           exposedModule: r.exposedModule,
           routePath: r.routePath,
           enabled: r.enabled,
+          visibilityType: isHostSpecific ? 'host' : 'global',
+          visibilityHostId: isHostSpecific ? pr.visibility!.slice('host:'.length) : '',
         });
         this.startHealthPolling(r.url);
       },
@@ -195,7 +238,19 @@ export class RemoteDetailComponent implements OnInit {
     if (!r || this.form.invalid || this.saving) return;
     this.saving = true;
     const v = this.form.getRawValue();
-    this.manager.updateRemote(r.name, v).subscribe({
+
+    const visibility =
+      v.visibilityType === 'host' && v.visibilityHostId
+        ? (`host:${v.visibilityHostId}` as const)
+        : 'global';
+
+    this.manager.updateRemote(r.name, {
+      url: v.url,
+      exposedModule: v.exposedModule,
+      routePath: v.routePath,
+      enabled: v.enabled,
+      visibility,
+    }).subscribe({
       next: (updated) => {
         this.remote.set(updated);
         this.form.markAsPristine();

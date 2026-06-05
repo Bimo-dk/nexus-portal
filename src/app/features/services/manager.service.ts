@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, catchError, from, map, throwError } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { SettingsService } from './settings.service';
 import type {
   AddRemoteRequest,
   HealthStatus,
@@ -12,13 +12,27 @@ import type {
   UpdateRemoteRequest,
 } from '@bimo-dk/nexus-core';
 import type { SystemHealthSnapshot } from '../../types/system-health';
+import type {
+  Host,
+  Gate,
+  HostRemote,
+  CreateHostDto,
+  UpdateHostDto,
+  CreateGateDto,
+  UpdateGateDto,
+  PortalRemoteConfig,
+} from '../../types/platform';
 
 @Injectable({ providedIn: 'root' })
 export class ManagerService {
   private readonly http = inject(HttpClient);
   private readonly snack = inject(MatSnackBar);
-  private readonly baseUrl = `${environment.registryUrl}/remotes`;
-  private readonly systemUrl = `${environment.registryUrl}/system`;
+  private readonly settings = inject(SettingsService);
+
+  private get baseUrl() { return `${this.settings.registryUrl()}/remotes`; }
+  private get systemUrl() { return `${this.settings.registryUrl()}/system`; }
+  private get hostsUrl() { return `${this.settings.registryUrl()}/hosts`; }
+  private get gatesUrl() { return `${this.settings.registryUrl()}/gates`; }
 
   getSystemHealth(fresh = false): Observable<SystemHealthSnapshot> {
     const url = fresh ? `${this.systemUrl}/health?fresh=true` : `${this.systemUrl}/health`;
@@ -50,8 +64,11 @@ export class ManagerService {
     );
   }
 
-  getRemotes(): Observable<RegistryResponse> {
-    return this.http.get<RegistryResponse>(this.baseUrl).pipe(catchError((err) => this.onError(err, 'Failed to fetch remotes')));
+  getRemotes(hostId?: string): Observable<RegistryResponse & { remotes: PortalRemoteConfig[] }> {
+    const url = hostId ? `${this.baseUrl}?host_id=${encodeURIComponent(hostId)}` : this.baseUrl;
+    return this.http
+      .get<RegistryResponse & { remotes: PortalRemoteConfig[] }>(url)
+      .pipe(catchError((err) => this.onError(err, 'Failed to fetch remotes')));
   }
 
   getRemote(name: string): Observable<RemoteConfig> {
@@ -60,8 +77,8 @@ export class ManagerService {
     );
   }
 
-  addRemote(config: AddRemoteRequest): Observable<RemoteConfig> {
-    return this.http.post<RemoteConfig>(this.baseUrl, config).pipe(
+  addRemote(config: AddRemoteRequest & { visibility?: string }): Observable<PortalRemoteConfig> {
+    return this.http.post<PortalRemoteConfig>(this.baseUrl, config).pipe(
       map((created) => {
         this.successSnack(`Remote "${created.name}" added`);
         return created;
@@ -70,8 +87,8 @@ export class ManagerService {
     );
   }
 
-  updateRemote(name: string, patch: UpdateRemoteRequest): Observable<RemoteConfig> {
-    return this.http.put<RemoteConfig>(`${this.baseUrl}/${encodeURIComponent(name)}`, patch).pipe(
+  updateRemote(name: string, patch: UpdateRemoteRequest & { visibility?: string }): Observable<PortalRemoteConfig> {
+    return this.http.put<PortalRemoteConfig>(`${this.baseUrl}/${encodeURIComponent(name)}`, patch).pipe(
       map((updated) => {
         this.successSnack(`Remote "${updated.name}" updated`);
         return updated;
@@ -113,6 +130,123 @@ export class ManagerService {
 
   checkHealth(remoteUrl: string): Observable<{ status: RemoteHealthStatus; raw?: HealthStatus; responseTimeMs: number }> {
     return from(this.doHealthCheck(remoteUrl));
+  }
+
+  getHosts(): Observable<Host[]> {
+    return this.http
+      .get<Host[]>(this.hostsUrl)
+      .pipe(catchError((err) => this.onError(err, 'Failed to fetch hosts')));
+  }
+
+  getHost(id: string): Observable<Host> {
+    return this.http
+      .get<Host>(`${this.hostsUrl}/${encodeURIComponent(id)}`)
+      .pipe(catchError((err) => this.onError(err, `Failed to fetch host "${id}"`)));
+  }
+
+  getHostRemotes(id: string): Observable<HostRemote[]> {
+    return this.http
+      .get<{ hostId: string; remotes: HostRemote[]; total: number }>(`${this.hostsUrl}/${encodeURIComponent(id)}/remotes`)
+      .pipe(
+        map((res) => res.remotes),
+        catchError((err) => this.onError(err, `Failed to fetch remotes for host "${id}"`)),
+      );
+  }
+
+  createHost(dto: CreateHostDto): Observable<Host> {
+    return this.http.post<Host>(this.hostsUrl, dto).pipe(
+      map((created) => {
+        this.successSnack(`Host "${created.name}" created`);
+        return created;
+      }),
+      catchError((err) => this.onError(err, 'Failed to create host')),
+    );
+  }
+
+  updateHost(id: string, dto: UpdateHostDto): Observable<Host> {
+    return this.http.put<Host>(`${this.hostsUrl}/${encodeURIComponent(id)}`, dto).pipe(
+      map((updated) => {
+        this.successSnack(`Host "${updated.name}" updated`);
+        return updated;
+      }),
+      catchError((err) => this.onError(err, `Failed to update host "${id}"`)),
+    );
+  }
+
+  deleteHost(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.hostsUrl}/${encodeURIComponent(id)}`).pipe(
+      map(() => {
+        this.successSnack('Host deleted');
+      }),
+      catchError((err) => this.onError(err, `Failed to delete host "${id}"`)),
+    );
+  }
+
+  toggleHost(id: string): Observable<Host> {
+    return this.http.post<Host>(`${this.hostsUrl}/${encodeURIComponent(id)}/toggle`, {}).pipe(
+      map((updated) => {
+        this.successSnack(`Host "${updated.name}" is now ${updated.enabled ? 'enabled' : 'disabled'}`);
+        return updated;
+      }),
+      catchError((err) => this.onError(err, `Failed to toggle host "${id}"`)),
+    );
+  }
+
+  getGates(): Observable<Gate[]> {
+    return this.http
+      .get<Gate[]>(this.gatesUrl)
+      .pipe(catchError((err) => this.onError(err, 'Failed to fetch gates')));
+  }
+
+  getGate(id: string): Observable<Gate> {
+    return this.http
+      .get<Gate>(`${this.gatesUrl}/${encodeURIComponent(id)}`)
+      .pipe(catchError((err) => this.onError(err, `Failed to fetch gate "${id}"`)));
+  }
+
+  getGateByDomain(domain: string): Observable<Gate> {
+    return this.http
+      .get<Gate>(`${this.gatesUrl}/by-domain/${encodeURIComponent(domain)}`)
+      .pipe(catchError((err) => this.onError(err, `Failed to fetch gate for domain "${domain}"`)));
+  }
+
+  createGate(dto: CreateGateDto): Observable<Gate> {
+    return this.http.post<Gate>(this.gatesUrl, dto).pipe(
+      map((created) => {
+        this.successSnack(`Gate "${created.name}" created`);
+        return created;
+      }),
+      catchError((err) => this.onError(err, 'Failed to create gate')),
+    );
+  }
+
+  updateGate(id: string, dto: UpdateGateDto): Observable<Gate> {
+    return this.http.put<Gate>(`${this.gatesUrl}/${encodeURIComponent(id)}`, dto).pipe(
+      map((updated) => {
+        this.successSnack(`Gate "${updated.name}" updated`);
+        return updated;
+      }),
+      catchError((err) => this.onError(err, `Failed to update gate "${id}"`)),
+    );
+  }
+
+  deleteGate(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.gatesUrl}/${encodeURIComponent(id)}`).pipe(
+      map(() => {
+        this.successSnack('Gate deleted');
+      }),
+      catchError((err) => this.onError(err, `Failed to delete gate "${id}"`)),
+    );
+  }
+
+  toggleGate(id: string): Observable<Gate> {
+    return this.http.post<Gate>(`${this.gatesUrl}/${encodeURIComponent(id)}/toggle`, {}).pipe(
+      map((updated) => {
+        this.successSnack(`Gate "${updated.name}" is now ${updated.enabled ? 'enabled' : 'disabled'}`);
+        return updated;
+      }),
+      catchError((err) => this.onError(err, `Failed to toggle gate "${id}"`)),
+    );
   }
 
   private async doHealthCheck(remoteUrl: string): Promise<{ status: RemoteHealthStatus; raw?: HealthStatus; responseTimeMs: number }> {

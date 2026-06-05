@@ -58,5 +58,35 @@ export const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'hosts',
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/hosts/host-list.component').then((m) => m.HostListComponent),
+      },
+      {
+        path: ':id',
+        loadComponent: () =>
+          import('./features/hosts/host-detail.component').then((m) => m.HostDetailComponent),
+      },
+    ],
+  },
+  {
+    path: 'gates',
+    loadComponent: () =>
+      import('./features/gates/gate-list.component').then((m) => m.GateListComponent),
+  },
+  {
+    path: 'protection',
+    loadComponent: () =>
+      import('./features/protection/protection.component').then((m) => m.ProtectionComponent),
+  },
+  {
+    path: 'settings',
+    loadComponent: () =>
+      import('./features/settings/settings.component').then((m) => m.SettingsComponent),
+  },
   { path: '**', redirectTo: 'dashboard' },
 ];
