@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,7 +7,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatCardModule } from '@angular/material/card';
+import { MatSelectModule } from '@angular/material/select';
+import { MatRadioModule } from '@angular/material/radio';
 import { ManagerService } from '../services/manager.service';
+import type { Host } from '../../types/platform';
 
 @Component({
   selector: 'app-remote-add',
@@ -22,6 +25,8 @@ import { ManagerService } from '../services/manager.service';
     MatIconModule,
     MatCheckboxModule,
     MatCardModule,
+    MatSelectModule,
+    MatRadioModule,
   ],
   template: `
     <div class="page">
@@ -74,12 +79,34 @@ import { ManagerService } from '../services/manager.service';
               }
             </mat-form-field>
 
+            <div class="visibility-group">
+              <p class="field-label">Visibility</p>
+              <mat-radio-group formControlName="visibilityType" class="radio-group">
+                <mat-radio-button value="global">Global — visible to all hosts</mat-radio-button>
+                <mat-radio-button value="host">Host-specific</mat-radio-button>
+              </mat-radio-group>
+
+              @if (form.controls.visibilityType.value === 'host') {
+                <mat-form-field appearance="outline" class="host-select">
+                  <mat-label>Host</mat-label>
+                  <mat-select formControlName="visibilityHostId">
+                    @for (h of hosts(); track h.id) {
+                      <mat-option [value]="h.id">{{ h.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.controls.visibilityHostId.touched && form.controls.visibilityHostId.errors) {
+                    <mat-error>Select a host.</mat-error>
+                  }
+                </mat-form-field>
+              }
+            </div>
+
             <mat-checkbox formControlName="enabled">Enable remote immediately</mat-checkbox>
 
             <div class="actions">
               <a mat-button routerLink="/remotes">Cancel</a>
-              <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
-                @if (submitting) { Saving... } @else { Save remote }
+              <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting()">
+                @if (submitting()) { Saving... } @else { Save remote }
               </button>
             </div>
           </form>
@@ -94,28 +121,45 @@ import { ManagerService } from '../services/manager.service';
       header h1 { margin: 8px 0 0; font-size: 24px; }
       .form-grid { display: flex; flex-direction: column; gap: 4px; }
       .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+      .visibility-group { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+      .field-label { margin: 0; font-size: 12px; color: rgba(0,0,0,0.6); }
+      .radio-group { display: flex; flex-direction: column; gap: 4px; }
+      .host-select { width: 100%; }
     `,
   ],
 })
-export class RemoteAddComponent {
+export class RemoteAddComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly manager = inject(ManagerService);
   private readonly router = inject(Router);
 
-  submitting = false;
+  readonly submitting = signal(false);
+  readonly hosts = signal<Host[]>([]);
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.pattern(/^[a-zA-Z][a-zA-Z0-9]*$/)]],
     url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
     exposedModule: ['./RemoteEntry', [Validators.required]],
     routePath: ['', [Validators.required, Validators.pattern(/^[a-z0-9-]+$/)]],
+    visibilityType: ['global' as 'global' | 'host'],
+    visibilityHostId: [''],
     enabled: [true],
   });
 
+  ngOnInit(): void {
+    this.manager.getHosts().subscribe({ next: (list) => this.hosts.set(list) });
+  }
+
   onSubmit(): void {
-    if (this.form.invalid || this.submitting) return;
-    this.submitting = true;
+    if (this.form.invalid || this.submitting()) return;
+    this.submitting.set(true);
     const v = this.form.getRawValue();
+
+    const visibility =
+      v.visibilityType === 'host' && v.visibilityHostId
+        ? (`host:${v.visibilityHostId}` as const)
+        : 'global';
+
     this.manager
       .addRemote({
         name: v.name,
@@ -123,11 +167,12 @@ export class RemoteAddComponent {
         exposedModule: v.exposedModule,
         routePath: v.routePath,
         enabled: v.enabled,
+        visibility,
       })
       .subscribe({
         next: () => this.router.navigate(['/remotes']),
         error: () => {
-          this.submitting = false;
+          this.submitting.set(false);
         },
       });
   }

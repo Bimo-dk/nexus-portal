@@ -7,6 +7,7 @@ export interface ConfirmDialogData {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  disableConfirm?: boolean;
 }
 
 @Component({
@@ -19,7 +20,7 @@ export interface ConfirmDialogData {
     <mat-dialog-content>{{ data.message }}</mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>{{ data.cancelLabel ?? 'Cancel' }}</button>
-      <button mat-raised-button color="warn" (click)="confirm()">
+      <button mat-raised-button color="warn" (click)="confirm()" [disabled]="data.disableConfirm">
         {{ data.confirmLabel ?? 'Delete' }}
       </button>
     </mat-dialog-actions>

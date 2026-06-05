@@ -58,11 +58,17 @@
         "serve": {
           "builder": "@angular-architects/native-federation:build",
           "options": {
-            "target": "manager:serve-original"
+            "target": "manager:serve-original",
+            "dev": true
           }
         },
         "serve-original": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "port": 8669,
+            "host": "0.0.0.0",
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": { "buildTarget": "manager:esbuild:production" },
             "development": { "buildTarget": "manager:esbuild:development" }
@@ -71,5 +77,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }

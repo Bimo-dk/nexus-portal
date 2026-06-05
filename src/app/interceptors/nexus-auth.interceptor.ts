@@ -1,12 +1,11 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { environment } from '../../environments/environment';
+import { inject } from '@angular/core';
+import { SettingsService } from '../features/services/settings.service';
 
 export const nexusAuthInterceptor: HttpInterceptorFn = (req, next) => {
-  if (!req.url.startsWith(environment.registryUrl)) {
+  const settings = inject(SettingsService);
+  if (!req.url.startsWith(settings.registryUrl())) {
     return next(req);
   }
-  const authed = req.clone({
-    setHeaders: { 'X-Nexus-Token': environment.nexusToken },
-  });
-  return next(authed);
+  return next(req.clone({ setHeaders: { 'X-Nexus-Token': settings.nexusToken() } }));
 };
