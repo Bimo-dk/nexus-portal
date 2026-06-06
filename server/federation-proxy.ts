@@ -20,9 +20,9 @@ export function createFederationProxy(opts: FederationProxyOptions) {
     const path = req.originalUrl.split('?')[0];
     if (!FEDERATION_PATH.test(path)) return next();
 
-    let upstream: Response;
+    let upstream: globalThis.Response;
     try {
-      upstream = await fetch(`${opts.gatewayUrl}${path}`) as unknown as Response;
+      upstream = await fetch(`${opts.gatewayUrl}${path}`);
     } catch (err) {
       console.error('[proxy] federation upstream failure', path, err);
       res.status(502).json({ error: 'upstream unavailable' });

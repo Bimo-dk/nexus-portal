@@ -84,9 +84,9 @@ export function createRegistryProxy(opts: ProxyOptions) {
         : JSON.stringify(req.body ?? null);
     if (body !== undefined) headers.set('content-type', 'application/json');
 
-    let upstream: Response;
+    let upstream: globalThis.Response;
     try {
-      upstream = await fetch(upstreamUrl, { method: req.method, headers, body }) as unknown as Response;
+      upstream = await fetch(upstreamUrl, { method: req.method, headers, body });
     } catch (err) {
       console.error('[proxy] registry upstream failure', upstreamUrl, err);
       res.status(502).json({ error: 'upstream unavailable' });
