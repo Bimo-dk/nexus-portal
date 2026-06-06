@@ -29,7 +29,7 @@
     "@angular/router": "^19.0.0",
     "@angular-architects/native-federation": "^19.0.13",
     "@bimo-dk/nexus-core": "^0.1.0",
-    "@bimo-dk/nexus-runtime": "^0.2.0",
+    "@bimo-dk/nexus-runtime": "^0.3.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.7.0",
     "cookie-parser": "^1.4.7",
