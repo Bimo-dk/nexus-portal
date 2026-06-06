@@ -20,9 +20,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package*.json .npmrc ./
-RUN --mount=type=secret,id=node_auth_token,required=true \
-    NODE_AUTH_TOKEN=$(cat /run/secrets/node_auth_token) \
-    npm install --no-audit --no-fund --legacy-peer-deps
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 FROM deps AS client-build
 COPY tsconfig*.json angular.json federation.config.js ./
@@ -31,6 +29,7 @@ COPY public ./public
 RUN npm run build:client
 
 FROM deps AS server-build
+COPY tsconfig*.json ./
 COPY server ./server
 RUN npm run build:server
 
@@ -38,9 +37,7 @@ FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package*.json .npmrc ./
-RUN --mount=type=secret,id=node_auth_token,required=true \
-    NODE_AUTH_TOKEN=$(cat /run/secrets/node_auth_token) \
-    npm install --omit=dev --no-audit --no-fund --legacy-peer-deps
+RUN npm install --omit=dev --no-audit --no-fund --legacy-peer-deps
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
