@@ -77,3 +77,37 @@ export interface GateChangedEvent {
   oldHostId?: string;
   newHostId?: string;
 }
+
+export interface AuditEntry {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  actor: string;
+  meta?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AuditLogResponse {
+  entries: AuditEntry[];
+  total: number;
+}
+
+export interface RemoteVersion {
+  id: string;
+  remoteName: string;
+  version: number;
+  url: string;
+  exposedModule: string;
+  routePath: string;
+  enabled: boolean;
+  upstreamUrl?: string;
+  visibility: string;
+  recordedAt: string;
+}
+
+export interface RemoteVersionsResponse {
+  remote: string;
+  versions: RemoteVersion[];
+  total: number;
+}

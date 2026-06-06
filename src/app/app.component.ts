@@ -112,6 +112,10 @@ import type { Host, Gate } from './types/platform';
                   <mat-icon matListItemIcon>insights</mat-icon>
                   <span matListItemTitle>Metrics</span>
                 </a>
+                <a mat-list-item routerLink="/system/audit" routerLinkActive="active">
+                  <mat-icon matListItemIcon>manage_search</mat-icon>
+                  <span matListItemTitle>Audit log</span>
+                </a>
               }
 
               <div class="section-heading">Remotes</div>

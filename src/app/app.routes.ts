@@ -49,6 +49,11 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/system/metrics.component').then((m) => m.MetricsComponent),
           },
+          {
+            path: 'audit',
+            loadComponent: () =>
+              import('./features/system/audit.component').then((m) => m.AuditComponent),
+          },
         ],
       },
       {

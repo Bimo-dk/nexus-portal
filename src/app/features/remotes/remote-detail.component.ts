@@ -25,7 +25,7 @@ import { ManagerService } from '../services/manager.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { NEXUS_DEFAULTS } from '@bimo-dk/nexus-core';
 import type { RemoteHealthStatus } from '@bimo-dk/nexus-core';
-import type { Host, PortalRemoteConfig } from '../../types/platform';
+import type { Host, PortalRemoteConfig, RemoteVersion } from '../../types/platform';
 
 @Component({
   selector: 'app-remote-detail',
@@ -143,6 +143,49 @@ import type { Host, PortalRemoteConfig } from '../../types/platform';
       } @else {
         <p>Loading...</p>
       }
+
+      @if (versions().length > 0) {
+        <mat-card class="versions-card">
+          <mat-card-header>
+            <mat-card-title>Version history</mat-card-title>
+            <mat-card-subtitle>{{ versions().length }} snapshot(s) &mdash; newest first</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <table class="versions-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>URL</th>
+                  <th>Module</th>
+                  <th>Route</th>
+                  <th>Enabled</th>
+                  <th>Recorded</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (v of versions(); track v.id) {
+                  <tr [class.current]="v.version === currentVersion()">
+                    <td><code>v{{ v.version }}</code> @if (v.version === currentVersion()) { <span class="pill-current">current</span> }</td>
+                    <td class="url-cell" [title]="v.url"><code>{{ v.url }}</code></td>
+                    <td><code>{{ v.exposedModule }}</code></td>
+                    <td><code>{{ v.routePath }}</code></td>
+                    <td>{{ v.enabled ? 'Yes' : 'No' }}</td>
+                    <td>{{ v.recordedAt | date: 'short' }}</td>
+                    <td>
+                      @if (v.version !== currentVersion()) {
+                        <button mat-stroked-button color="primary" (click)="onRollback(v)" [disabled]="rollingBack">
+                          Rollback
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </mat-card-content>
+        </mat-card>
+      }
     </div>
   `,
   styles: [
@@ -163,6 +206,16 @@ import type { Host, PortalRemoteConfig } from '../../types/platform';
       .field-label { margin: 0; font-size: 12px; color: rgba(0,0,0,0.6); }
       .radio-group { display: flex; flex-direction: column; gap: 4px; }
       .host-select { width: 100%; }
+
+      .versions-card { margin-top: 16px; }
+      .versions-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .versions-table th { text-align: left; padding: 6px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(0,0,0,0.6); border-bottom: 2px solid #e2e8f0; }
+      .versions-table td { padding: 5px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+      .versions-table tr.current td { background: #f0fdf4; }
+      .url-cell { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .url-cell code { font-family: monospace; font-size: 11px; }
+      .versions-table code { font-family: monospace; font-size: 11px; }
+      .pill-current { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px; font-weight: 700; background: #dcfce7; color: #166534; margin-left: 4px; vertical-align: middle; }
     `,
   ],
 })
@@ -179,7 +232,10 @@ export class RemoteDetailComponent implements OnInit {
   readonly health = signal<RemoteHealthStatus | null>(null);
   readonly responseTime = signal<number | null>(null);
   readonly lastChecked = signal<Date | null>(null);
+  readonly versions = signal<RemoteVersion[]>([]);
+  readonly currentVersion = signal<number | null>(null);
   saving = false;
+  rollingBack = false;
 
   readonly form = this.fb.nonNullable.group({
     url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
@@ -211,6 +267,7 @@ export class RemoteDetailComponent implements OnInit {
           visibilityHostId: isHostSpecific ? pr.visibility!.slice('host:'.length) : '',
         });
         this.startHealthPolling(r.url);
+        this.loadVersions(name);
       },
       error: () => this.router.navigate(['/remotes']),
     });
@@ -285,5 +342,43 @@ export class RemoteDetailComponent implements OnInit {
     const r = this.remote();
     if (!r) return;
     this.manager.redeployRemote(r.name).subscribe();
+  }
+
+  onRollback(v: RemoteVersion): void {
+    const r = this.remote();
+    if (!r || this.rollingBack) return;
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: `Roll back "${r.name}" to v${v.version}?`,
+        message: `The remote will be restored to the configuration captured at v${v.version}. This creates a new version entry.`,
+        confirmLabel: 'Roll back',
+      },
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.rollingBack = true;
+      this.manager.rollbackRemote(r.name, v.version).subscribe({
+        next: (updated) => {
+          this.remote.set(updated);
+          this.rollingBack = false;
+          this.loadVersions(r.name);
+        },
+        error: () => {
+          this.rollingBack = false;
+        },
+      });
+    });
+  }
+
+  private loadVersions(name: string): void {
+    this.manager.getRemoteVersions(name).subscribe({
+      next: (res) => {
+        this.versions.set(res.versions);
+        if (res.versions.length > 0) {
+          this.currentVersion.set(res.versions[0].version);
+        }
+      },
+      error: () => {},
+    });
   }
 }

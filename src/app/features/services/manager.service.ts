@@ -13,6 +13,7 @@ import type {
 } from '@bimo-dk/nexus-core';
 import type { SystemHealthSnapshot } from '../../types/system-health';
 import type {
+  AuditLogResponse,
   Host,
   Gate,
   HostRemote,
@@ -21,6 +22,7 @@ import type {
   CreateGateDto,
   UpdateGateDto,
   PortalRemoteConfig,
+  RemoteVersionsResponse,
 } from '../../types/platform';
 
 @Injectable({ providedIn: 'root' })
@@ -236,6 +238,35 @@ export class ManagerService {
         this.successSnack('Gate deleted');
       }),
       catchError((err) => this.onError(err, `Failed to delete gate "${id}"`)),
+    );
+  }
+
+  getAuditLog(params: { entityType?: string; entityId?: string; action?: string; before?: string; limit?: number } = {}): Observable<AuditLogResponse> {
+    const qs = new URLSearchParams();
+    if (params.entityType) qs.set('entity_type', params.entityType);
+    if (params.entityId) qs.set('entity_id', params.entityId);
+    if (params.action) qs.set('action', params.action);
+    if (params.before) qs.set('before', params.before);
+    if (params.limit) qs.set('limit', String(params.limit));
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return this.http.get<AuditLogResponse>(`${this.systemUrl}/audit${suffix}`).pipe(
+      catchError((err) => this.onError(err, 'Failed to fetch audit log')),
+    );
+  }
+
+  getRemoteVersions(name: string): Observable<RemoteVersionsResponse> {
+    return this.http.get<RemoteVersionsResponse>(`${this.baseUrl}/${encodeURIComponent(name)}/versions`).pipe(
+      catchError((err) => this.onError(err, `Failed to fetch versions for "${name}"`)),
+    );
+  }
+
+  rollbackRemote(name: string, version: number): Observable<PortalRemoteConfig> {
+    return this.http.post<PortalRemoteConfig>(`${this.baseUrl}/${encodeURIComponent(name)}/rollback`, { version }).pipe(
+      map((updated) => {
+        this.successSnack(`Remote "${name}" rolled back to version ${version}`);
+        return updated;
+      }),
+      catchError((err) => this.onError(err, `Failed to rollback "${name}"`)),
     );
   }
 
