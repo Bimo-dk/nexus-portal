@@ -1,7 +1,7 @@
 export interface PortalConfig {
   port: number;
   host: string;
-  databasePath: string;
+  databaseUrl: string;
   sessionSecret: string;
   initialPassword: string | null;
   registryUrl: string;
@@ -30,7 +30,7 @@ export function loadConfig(): PortalConfig {
   return {
     port: intEnv('PORT', 8080),
     host: process.env.HOST ?? '0.0.0.0',
-    databasePath: process.env.DATABASE_PATH ?? '/data/portal.db',
+    databaseUrl: process.env.DATABASE_URL ?? 'sqlite:/data/portal.db',
     sessionSecret: required('SESSION_SECRET'),
     initialPassword: process.env.NEXUS_INITIAL_PASSWORD ?? null,
     registryUrl: process.env.REGISTRY_URL ?? 'http://registry:8670',

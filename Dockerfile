@@ -9,11 +9,14 @@
 # Required env-vars at runtime:
 #   SESSION_SECRET           - cookie signing secret (strong random)
 #   NEXUS_TOKEN              - registry token, server-side only
-#   NEXUS_INITIAL_PASSWORD   - required only when /data/portal.db is empty;
+#   NEXUS_INITIAL_PASSWORD   - required only when the users table is empty;
 #                              seeds the initial admin user with a forced
 #                              password change at first login
 #
-# SQLite lives at /data/portal.db — mount a named volume to persist.
+# Database (DATABASE_URL):
+#   SQLite (default): sqlite:/data/portal.db — mount a named volume to persist.
+#   PostgreSQL:       postgres://user:pass@host:5432/dbname
+#   MySQL / MariaDB:  mysql://user:pass@host:3306/dbname
 # ============================================================================
 
 FROM node:22-alpine AS deps
@@ -52,7 +55,7 @@ ENV NODE_ENV=production
 ENV PORT=80
 ENV HOST=0.0.0.0
 ENV STATIC_DIR=/app/dist/manager/browser
-ENV DATABASE_PATH=/data/portal.db
+ENV DATABASE_URL=sqlite:/data/portal.db
 
 EXPOSE 80
 

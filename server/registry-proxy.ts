@@ -3,7 +3,7 @@ import type { Socket } from 'node:net';
 import type { NextFunction, Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
 import { WebSocket, WebSocketServer } from 'ws';
-import type Database from 'better-sqlite3';
+import type { Knex } from 'knex';
 import type { Role } from './db.js';
 import { findSession, findUserById } from './db.js';
 import { SESSION_COOKIE } from './middleware.js';
@@ -124,13 +124,13 @@ function parseSignedCookie(rawCookie: string | undefined, secret: string, name: 
 
 export function attachWebSocketProxy(
   server: Server,
-  db: Database.Database,
+  db: Knex,
   sessionSecret: string,
   opts: ProxyOptions,
 ): void {
   const wss = new WebSocketServer({ noServer: true });
 
-  server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+  server.on('upgrade', async (req: IncomingMessage, socket: Socket, head: Buffer) => {
     if (!req.url || !req.url.startsWith('/api/ws')) {
       socket.destroy();
       return;
@@ -142,13 +142,13 @@ export function attachWebSocketProxy(
       socket.destroy();
       return;
     }
-    const session = findSession(db, sessionId);
+    const session = await findSession(db, sessionId);
     if (!session) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }
-    const user = findUserById(db, session.user_id);
+    const user = await findUserById(db, session.user_id);
     if (!user) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();

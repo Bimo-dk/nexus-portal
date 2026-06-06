@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import type Database from 'better-sqlite3';
+import type { Knex } from 'knex';
 import {
   MIN_PASSWORD_LENGTH,
   createUser,
@@ -16,15 +16,15 @@ import { requireRole } from './middleware.js';
 
 const VALID_ROLES: ReadonlyArray<Role> = ['admin', 'developer'];
 
-export function createUsersRouter(db: Database.Database): Router {
+export function createUsersRouter(db: Knex): Router {
   const router = Router();
   router.use(requireRole('admin'));
 
-  router.get('/', (_req: Request, res: Response) => {
-    res.json(listUsers(db));
+  router.get('/', async (_req: Request, res: Response) => {
+    res.json(await listUsers(db));
   });
 
-  router.post('/', (req: Request, res: Response) => {
+  router.post('/', async (req: Request, res: Response) => {
     const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     const role = req.body?.role as Role | undefined;
@@ -41,21 +41,21 @@ export function createUsersRouter(db: Database.Database): Router {
       res.status(400).json({ error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` });
       return;
     }
-    if (findUserByUsername(db, username)) {
+    if (await findUserByUsername(db, username)) {
       res.status(409).json({ error: 'username already exists' });
       return;
     }
 
-    res.json(createUser(db, username, password, role, true));
+    res.json(await createUser(db, username, password, role, true));
   });
 
-  router.patch('/:id', (req: Request, res: Response) => {
+  router.patch('/:id', async (req: Request, res: Response) => {
     const id = Number.parseInt(req.params.id, 10);
     if (!Number.isFinite(id)) {
       res.status(400).json({ error: 'invalid id' });
       return;
     }
-    const user = findUserById(db, id);
+    const user = await findUserById(db, id);
     if (!user) {
       res.status(404).json({ error: 'user not found' });
       return;
@@ -72,8 +72,8 @@ export function createUsersRouter(db: Database.Database): Router {
       return;
     }
 
-    updateUser(db, id, { password, role });
-    const updated = findUserById(db, id);
+    await updateUser(db, id, { password, role });
+    const updated = await findUserById(db, id);
     if (!updated) {
       res.status(404).json({ error: 'user not found' });
       return;
@@ -81,7 +81,7 @@ export function createUsersRouter(db: Database.Database): Router {
     res.json(rowToPublic(updated));
   });
 
-  router.delete('/:id', (req: Request, res: Response) => {
+  router.delete('/:id', async (req: Request, res: Response) => {
     const id = Number.parseInt(req.params.id, 10);
     if (!Number.isFinite(id)) {
       res.status(400).json({ error: 'invalid id' });
@@ -91,14 +91,14 @@ export function createUsersRouter(db: Database.Database): Router {
       res.status(400).json({ error: 'cannot delete your own account' });
       return;
     }
-    const user = findUserById(db, id);
+    const user = await findUserById(db, id);
     if (!user) {
       res.status(404).json({ error: 'user not found' });
       return;
     }
 
-    deleteSessionsForUser(db, id);
-    deleteUser(db, id);
+    await deleteSessionsForUser(db, id);
+    await deleteUser(db, id);
     res.json({ status: 'ok' });
   });
 

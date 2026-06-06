@@ -3,7 +3,7 @@ import express, { type Request, type Response } from 'express';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { loadConfig } from './config.js';
-import { createUser, openDb, userCount } from './db.js';
+import { createUser, migrate, openDb, userCount } from './db.js';
 import { createAuthRouter } from './auth.js';
 import { createUsersRouter } from './users.js';
 import { attachWebSocketProxy, createRegistryProxy } from './registry-proxy.js';
@@ -11,11 +11,12 @@ import { createFederationProxy } from './federation-proxy.js';
 import { attachSecurityHeaders, registerStatic } from './static.js';
 import { blockWhilePasswordChangeRequired, loadSessionUser } from './middleware.js';
 
-function main(): void {
+async function main(): Promise<void> {
   const config = loadConfig();
-  const db = openDb(config.databasePath);
+  const db = openDb(config.databaseUrl);
+  await migrate(db);
 
-  if (userCount(db) === 0) {
+  if (await userCount(db) === 0) {
     if (!config.initialPassword) {
       const msg =
         'nexus-portal cannot start: the user database is empty and NEXUS_INITIAL_PASSWORD ' +
@@ -24,7 +25,7 @@ function main(): void {
       process.stderr.write(`\n[nexus-portal] ${msg}\n\n`);
       process.exit(1);
     }
-    createUser(db, 'admin', config.initialPassword, 'admin', true);
+    await createUser(db, 'admin', config.initialPassword, 'admin', true);
     console.log('[nexus-portal] seeded initial admin user — password change required on first login.');
   }
 
@@ -66,8 +67,8 @@ function main(): void {
 
   const shutdown = (signal: string) => {
     console.log(`[nexus-portal] received ${signal}, shutting down`);
-    server.close(() => {
-      db.close();
+    server.close(async () => {
+      await db.destroy();
       process.exit(0);
     });
     setTimeout(() => process.exit(1), 5000).unref();
@@ -85,4 +86,7 @@ function main(): void {
   });
 }
 
-main();
+main().catch((err) => {
+  console.error('[nexus-portal] startup failure', err);
+  process.exit(1);
+});

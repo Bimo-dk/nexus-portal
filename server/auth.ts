@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import type Database from 'better-sqlite3';
+import type { Knex } from 'knex';
 import {
   MIN_PASSWORD_LENGTH,
   createSession,
@@ -16,10 +16,10 @@ export interface AuthOptions {
   cookieSecure: boolean;
 }
 
-export function createAuthRouter(db: Database.Database, opts: AuthOptions): Router {
+export function createAuthRouter(db: Knex, opts: AuthOptions): Router {
   const router = Router();
 
-  router.post('/login', (req: Request, res: Response) => {
+  router.post('/login', async (req: Request, res: Response) => {
     const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!username || !password) {
@@ -27,14 +27,14 @@ export function createAuthRouter(db: Database.Database, opts: AuthOptions): Rout
       return;
     }
 
-    const user = findUserByUsername(db, username);
+    const user = await findUserByUsername(db, username);
     if (!user || !verifyPassword(password, user.password_hash)) {
       res.status(401).json({ error: 'invalid credentials' });
       return;
     }
 
-    const sessionId = createSession(db, user.id, opts.sessionTtlSeconds);
-    touchLogin(db, user.id);
+    const sessionId = await createSession(db, user.id, opts.sessionTtlSeconds);
+    await touchLogin(db, user.id);
 
     res.cookie(SESSION_COOKIE, sessionId, {
       httpOnly: true,
@@ -48,13 +48,13 @@ export function createAuthRouter(db: Database.Database, opts: AuthOptions): Rout
     res.json({
       username: user.username,
       role: user.role,
-      must_change_password: user.must_change_password === 1,
+      must_change_password: user.must_change_password,
     });
   });
 
-  router.post('/logout', (req: Request, res: Response) => {
+  router.post('/logout', async (req: Request, res: Response) => {
     const cookie = req.signedCookies?.[SESSION_COOKIE];
-    if (cookie) deleteSession(db, cookie);
+    if (cookie) await deleteSession(db, cookie);
     res.clearCookie(SESSION_COOKIE, { path: '/' });
     res.json({ status: 'ok' });
   });
@@ -71,7 +71,7 @@ export function createAuthRouter(db: Database.Database, opts: AuthOptions): Rout
     });
   });
 
-  router.post('/change-password', (req: Request, res: Response) => {
+  router.post('/change-password', async (req: Request, res: Response) => {
     if (!req.sessionUser) {
       res.status(401).json({ error: 'authentication required' });
       return;
@@ -87,13 +87,13 @@ export function createAuthRouter(db: Database.Database, opts: AuthOptions): Rout
       return;
     }
 
-    const user = findUserByUsername(db, req.sessionUser.username);
+    const user = await findUserByUsername(db, req.sessionUser.username);
     if (!user || !verifyPassword(current, user.password_hash)) {
       res.status(401).json({ error: 'current password incorrect' });
       return;
     }
 
-    markPasswordChanged(db, user.id, next);
+    await markPasswordChanged(db, user.id, next);
     res.json({ status: 'ok' });
   });
 

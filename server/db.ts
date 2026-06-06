@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import Database from 'better-sqlite3';
+import knex, { type Knex } from 'knex';
 import bcrypt from 'bcryptjs';
 
 export type Role = 'admin' | 'developer';
@@ -10,7 +10,7 @@ export interface UserRow {
   username: string;
   password_hash: string;
   role: Role;
-  must_change_password: 0 | 1;
+  must_change_password: boolean;
   created_at: string;
   last_login_at: string | null;
 }
@@ -22,58 +22,91 @@ export interface SessionRow {
   created_at: number;
 }
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS roles (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL
-);
+export interface UserWithRole {
+  id: number;
+  username: string;
+  role: Role;
+  must_change_password: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
 
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE NOT NULL COLLATE NOCASE,
-  password_hash TEXT NOT NULL,
-  role_id INTEGER NOT NULL REFERENCES roles(id),
-  must_change_password INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  last_login_at TEXT
-);
+function parseDriver(url: string): 'better-sqlite3' | 'pg' | 'mysql2' {
+  if (url.startsWith('sqlite:')) return 'better-sqlite3';
+  if (url.startsWith('postgres://') || url.startsWith('postgresql://')) return 'pg';
+  if (url.startsWith('mysql://') || url.startsWith('mariadb://')) return 'mysql2';
+  throw new Error(`Unsupported DATABASE_URL scheme. Use sqlite:, postgresql:, mysql:, or mariadb:`);
+}
 
-CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
-);
+export function openDb(databaseUrl: string): Knex {
+  const driver = parseDriver(databaseUrl);
 
-CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS sessions_expires_idx ON sessions(expires_at);
-`;
-
-const SEED_ROLES = ['admin', 'developer'];
-
-export function openDb(path: string): Database.Database {
-  mkdirSync(dirname(path), { recursive: true });
-
-  let db: Database.Database;
-  try {
-    db = new Database(path);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to open SQLite database at ${path}: ${message}`);
+  if (driver === 'better-sqlite3') {
+    const filename = databaseUrl.slice('sqlite:'.length);
+    mkdirSync(dirname(filename === ':memory:' ? '/tmp/x' : filename), { recursive: true });
+    return knex({
+      client: 'better-sqlite3',
+      connection: { filename },
+      useNullAsDefault: true,
+    });
   }
 
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.exec(SCHEMA);
+  const connectionString = databaseUrl.startsWith('mariadb://')
+    ? databaseUrl.replace('mariadb://', 'mysql://')
+    : databaseUrl;
 
-  const insertRole = db.prepare('INSERT OR IGNORE INTO roles (name) VALUES (?)');
-  for (const role of SEED_ROLES) insertRole.run(role);
+  return knex({
+    client: driver,
+    connection: connectionString,
+    pool: { min: 2, max: 10 },
+  });
+}
 
-  return db;
+export async function migrate(db: Knex): Promise<void> {
+  const isSqlite = (db.client as { config: { client: string } }).config.client === 'better-sqlite3';
+
+  if (isSqlite) {
+    await db.raw('PRAGMA journal_mode = WAL');
+    await db.raw('PRAGMA foreign_keys = ON');
+  }
+
+  if (!(await db.schema.hasTable('roles'))) {
+    await db.schema.createTable('roles', (t: Knex.CreateTableBuilder) => {
+      t.increments('id').primary();
+      t.string('name', 64).unique().notNullable();
+    });
+  }
+
+  if (!(await db.schema.hasTable('users'))) {
+    await db.schema.createTable('users', (t: Knex.CreateTableBuilder) => {
+      t.increments('id').primary();
+      t.string('username', 255).unique().notNullable();
+      t.string('password_hash', 255).notNullable();
+      t.integer('role_id').unsigned().notNullable().references('id').inTable('roles');
+      t.boolean('must_change_password').notNullable().defaultTo(false);
+      t.timestamp('created_at', { useTz: false }).notNullable().defaultTo(db.fn.now());
+      t.timestamp('last_login_at', { useTz: false }).nullable();
+    });
+  }
+
+  if (!(await db.schema.hasTable('sessions'))) {
+    await db.schema.createTable('sessions', (t: Knex.CreateTableBuilder) => {
+      t.string('id', 64).primary();
+      t.integer('user_id').unsigned().notNullable().references('id').inTable('users').onDelete('CASCADE');
+      t.bigInteger('expires_at').notNullable();
+      t.bigInteger('created_at').notNullable();
+      t.index(['user_id']);
+      t.index(['expires_at']);
+    });
+  }
+
+  for (const name of ['admin', 'developer'] as const) {
+    const exists = await db('roles').where({ name }).first();
+    if (!exists) await db('roles').insert({ name });
+  }
 }
 
 const BCRYPT_COST = 10;
-
 export const MIN_PASSWORD_LENGTH = 8;
 
 export function hashPassword(plain: string): string {
@@ -84,44 +117,26 @@ export function verifyPassword(plain: string, hash: string): boolean {
   return bcrypt.compareSync(plain, hash);
 }
 
-export function userCount(db: Database.Database): number {
-  return (db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
-}
+const USER_SELECT = [
+  'u.id',
+  'u.username',
+  'u.password_hash',
+  'r.name as role',
+  'u.must_change_password',
+  'u.created_at',
+  'u.last_login_at',
+] as const;
 
-export function roleId(db: Database.Database, name: Role): number {
-  const row = db.prepare('SELECT id FROM roles WHERE name = ?').get(name) as { id: number } | undefined;
-  if (!row) throw new Error(`Role ${name} not found — schema not seeded`);
-  return row.id;
-}
-
-export interface UserWithRole {
-  id: number;
-  username: string;
-  role: Role;
-  must_change_password: boolean;
-  created_at: string;
-  last_login_at: string | null;
-}
-
-const SELECT_USER_BASE = `
-SELECT u.id, u.username, u.password_hash, r.name AS role,
-       u.must_change_password, u.created_at, u.last_login_at
-FROM users u JOIN roles r ON r.id = u.role_id
-`;
-
-export function findUserByUsername(db: Database.Database, username: string): UserRow | null {
-  const row = db.prepare(`${SELECT_USER_BASE} WHERE u.username = ?`).get(username) as UserRow | undefined;
-  return row ?? null;
-}
-
-export function findUserById(db: Database.Database, id: number): UserRow | null {
-  const row = db.prepare(`${SELECT_USER_BASE} WHERE u.id = ?`).get(id) as UserRow | undefined;
-  return row ?? null;
-}
-
-export function listUsers(db: Database.Database): UserWithRole[] {
-  const rows = db.prepare(`${SELECT_USER_BASE} ORDER BY u.username`).all() as UserRow[];
-  return rows.map(rowToPublic);
+function normalizeUser(row: Record<string, unknown>): UserRow {
+  return {
+    id: Number(row.id),
+    username: String(row.username),
+    password_hash: String(row.password_hash),
+    role: row.role as Role,
+    must_change_password: Boolean(row.must_change_password),
+    created_at: String(row.created_at),
+    last_login_at: row.last_login_at != null ? String(row.last_login_at) : null,
+  };
 }
 
 export function rowToPublic(row: UserRow): UserWithRole {
@@ -129,85 +144,126 @@ export function rowToPublic(row: UserRow): UserWithRole {
     id: row.id,
     username: row.username,
     role: row.role,
-    must_change_password: row.must_change_password === 1,
+    must_change_password: row.must_change_password,
     created_at: row.created_at,
     last_login_at: row.last_login_at,
   };
 }
 
-export function createUser(
-  db: Database.Database,
+export async function userCount(db: Knex): Promise<number> {
+  const [{ n }] = await db('users').count('id as n');
+  return Number(n);
+}
+
+async function roleId(db: Knex, name: Role): Promise<number> {
+  const row = await db('roles').where({ name }).first<{ id: number }>();
+  if (!row) throw new Error(`Role ${name} not found — schema not seeded`);
+  return row.id;
+}
+
+export async function findUserByUsername(db: Knex, username: string): Promise<UserRow | null> {
+  const row = await db('users as u')
+    .join('roles as r', 'r.id', 'u.role_id')
+    .select(USER_SELECT)
+    .whereRaw('LOWER(u.username) = LOWER(?)', [username])
+    .first<Record<string, unknown>>();
+  return row ? normalizeUser(row) : null;
+}
+
+export async function findUserById(db: Knex, id: number): Promise<UserRow | null> {
+  const row = await db('users as u')
+    .join('roles as r', 'r.id', 'u.role_id')
+    .select(USER_SELECT)
+    .where('u.id', id)
+    .first<Record<string, unknown>>();
+  return row ? normalizeUser(row) : null;
+}
+
+export async function listUsers(db: Knex): Promise<UserWithRole[]> {
+  const rows = await db('users as u')
+    .join('roles as r', 'r.id', 'u.role_id')
+    .select(USER_SELECT)
+    .orderBy('u.username') as Record<string, unknown>[];
+  return rows.map((r) => rowToPublic(normalizeUser(r)));
+}
+
+export async function createUser(
+  db: Knex,
   username: string,
   password: string,
   role: Role,
   mustChangePassword: boolean,
-): UserWithRole {
-  const stmt = db.prepare(`
-    INSERT INTO users (username, password_hash, role_id, must_change_password)
-    VALUES (?, ?, ?, ?)
-  `);
-  const result = stmt.run(username, hashPassword(password), roleId(db, role), mustChangePassword ? 1 : 0);
-  const created = findUserById(db, Number(result.lastInsertRowid));
+): Promise<UserWithRole> {
+  const rid = await roleId(db, role);
+  const [id] = await db('users').insert({
+    username,
+    password_hash: hashPassword(password),
+    role_id: rid,
+    must_change_password: mustChangePassword,
+  });
+  const created = await findUserById(db, Number(id));
   if (!created) throw new Error('User vanished immediately after insert');
   return rowToPublic(created);
 }
 
-export function updateUser(
-  db: Database.Database,
+export async function updateUser(
+  db: Knex,
   id: number,
   patch: { role?: Role; password?: string },
-): void {
+): Promise<void> {
   if (patch.role) {
-    db.prepare('UPDATE users SET role_id = ? WHERE id = ?').run(roleId(db, patch.role), id);
+    await db('users').where({ id }).update({ role_id: await roleId(db, patch.role) });
   }
   if (patch.password) {
-    db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?')
-      .run(hashPassword(patch.password), id);
+    await db('users').where({ id }).update({
+      password_hash: hashPassword(patch.password),
+      must_change_password: false,
+    });
   }
 }
 
-export function deleteUser(db: Database.Database, id: number): void {
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+export async function deleteUser(db: Knex, id: number): Promise<void> {
+  await db('users').where({ id }).delete();
 }
 
-export function markPasswordChanged(db: Database.Database, id: number, newPassword: string): void {
-  db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?')
-    .run(hashPassword(newPassword), id);
+export async function markPasswordChanged(db: Knex, id: number, newPassword: string): Promise<void> {
+  await db('users').where({ id }).update({
+    password_hash: hashPassword(newPassword),
+    must_change_password: false,
+  });
 }
 
-export function touchLogin(db: Database.Database, id: number): void {
-  db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(id);
+export async function touchLogin(db: Knex, id: number): Promise<void> {
+  await db('users').where({ id }).update({ last_login_at: db.fn.now() });
 }
 
-export function createSession(db: Database.Database, userId: number, ttlSeconds: number): string {
+export async function createSession(db: Knex, userId: number, ttlSeconds: number): Promise<string> {
   const id = randomToken();
   const now = Date.now();
-  const expires = now + ttlSeconds * 1000;
-  db.prepare('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
-    .run(id, userId, expires, now);
+  await db('sessions').insert({ id, user_id: userId, expires_at: now + ttlSeconds * 1000, created_at: now });
   return id;
 }
 
-export function findSession(db: Database.Database, id: string): SessionRow | null {
-  const row = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as SessionRow | undefined;
+export async function findSession(db: Knex, id: string): Promise<SessionRow | null> {
+  const row = await db('sessions').where({ id }).first<SessionRow>();
   if (!row) return null;
-  if (row.expires_at <= Date.now()) {
-    deleteSession(db, id);
+  if (Number(row.expires_at) <= Date.now()) {
+    await deleteSession(db, id);
     return null;
   }
-  return row;
+  return { ...row, expires_at: Number(row.expires_at), created_at: Number(row.created_at) };
 }
 
-export function deleteSession(db: Database.Database, id: string): void {
-  db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
+export async function deleteSession(db: Knex, id: string): Promise<void> {
+  await db('sessions').where({ id }).delete();
 }
 
-export function deleteSessionsForUser(db: Database.Database, userId: number): void {
-  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+export async function deleteSessionsForUser(db: Knex, userId: number): Promise<void> {
+  await db('sessions').where({ user_id: userId }).delete();
 }
 
-export function purgeExpiredSessions(db: Database.Database): void {
-  db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
+export async function purgeExpiredSessions(db: Knex): Promise<void> {
+  await db('sessions').where('expires_at', '<=', Date.now()).delete();
 }
 
 function randomToken(): string {

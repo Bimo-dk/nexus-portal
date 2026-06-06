@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import type Database from 'better-sqlite3';
+import type { Knex } from 'knex';
 import type { Role, UserRow } from './db.js';
 import { findSession, findUserById } from './db.js';
 
@@ -19,15 +19,15 @@ declare module 'express-serve-static-core' {
 
 export const SESSION_COOKIE = 'nexus_session';
 
-export function loadSessionUser(db: Database.Database) {
-  return function (req: Request, _res: Response, next: NextFunction): void {
+export function loadSessionUser(db: Knex) {
+  return async function (req: Request, _res: Response, next: NextFunction): Promise<void> {
     const cookie = req.signedCookies?.[SESSION_COOKIE];
     if (!cookie) return next();
 
-    const session = findSession(db, cookie);
+    const session = await findSession(db, cookie);
     if (!session) return next();
 
-    const user = findUserById(db, session.user_id);
+    const user = await findUserById(db, session.user_id);
     if (!user) return next();
 
     req.sessionUser = userToSession(user, session.id);
@@ -79,7 +79,7 @@ export function userToSession(user: UserRow, sessionId: string): SessionUser {
     id: user.id,
     username: user.username,
     role: user.role,
-    mustChangePassword: user.must_change_password === 1,
+    mustChangePassword: user.must_change_password,
     sessionId,
   };
 }
