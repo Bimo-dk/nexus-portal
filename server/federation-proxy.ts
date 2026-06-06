@@ -13,6 +13,12 @@ const HOP_BY_HOP = new Set([
   'upgrade',
   'host',
   'content-length',
+  // Node's fetch decompresses gzipped responses transparently but leaves
+  // the upstream Content-Encoding header on the response object. If we
+  // forward it untouched, the browser tries to gunzip the already-decoded
+  // body and fails with ERR_CONTENT_DECODING_FAILED. Strip it. Same goes
+  // for content-length, which is wrong post-decompression.
+  'content-encoding',
 ]);
 
 export function createFederationProxy(opts: FederationProxyOptions) {
