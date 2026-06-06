@@ -65,7 +65,7 @@ import type { Host } from '../../types/platform';
           <td mat-cell *matCellDef="let h"><code>{{ h.url }}</code></td>
         </ng-container>
 
-        <ng-container matColumnDef="gate_count">
+        <ng-container matColumnDef="gateCount">
           <th mat-header-cell *matHeaderCellDef>Gates</th>
           <td mat-cell *matCellDef="let h">
             <button
@@ -74,7 +74,7 @@ import type { Host } from '../../types/platform';
               (click)="navGatesFor(h)"
               [matTooltip]="'View gates for ' + h.name"
             >
-              {{ h.gate_count }}
+              {{ h.gateCount }}
             </button>
           </td>
         </ng-container>
@@ -150,7 +150,7 @@ export class HostListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly displayed = ['name', 'framework', 'url', 'gate_count', 'enabled', 'actions'];
+  readonly displayed = ['name', 'framework', 'url', 'gateCount', 'enabled', 'actions'];
   readonly hosts = signal<Host[]>([]);
   readonly flashing = signal<Set<string>>(new Set());
 

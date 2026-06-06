@@ -80,8 +80,12 @@ import type { Gate, Host } from '../../types/platform';
         <ng-container matColumnDef="host">
           <th mat-header-cell *matHeaderCellDef>Host</th>
           <td mat-cell *matCellDef="let g" [class.host-col-flash]="flashingHostCol().has(g.id)">
-            <span class="fw-badge" [class]="'fw-' + g.host.framework">{{ g.host.framework }}</span>
-            {{ g.host.name }}
+            @if (g.host) {
+              <span class="fw-badge" [class]="'fw-' + g.host.framework">{{ g.host.framework }}</span>
+              {{ g.host.name }}
+            } @else {
+              <span class="host-unbound">— unbound —</span>
+            }
           </td>
         </ng-container>
 

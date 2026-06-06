@@ -23,6 +23,8 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package*.json .npmrc ./
+# @bimo-dk/* packages are public on npmjs.com — no auth needed. No BuildKit
+# secret mount, no .npmrc override beyond legacy-peer-deps.
 RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 FROM deps AS client-build

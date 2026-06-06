@@ -136,8 +136,11 @@ export class ManagerService {
 
   getHosts(): Observable<Host[]> {
     return this.http
-      .get<Host[]>(this.hostsUrl)
-      .pipe(catchError((err) => this.onError(err, 'Failed to fetch hosts')));
+      .get<{ hosts: Host[]; total: number }>(this.hostsUrl)
+      .pipe(
+        map((res) => res.hosts),
+        catchError((err) => this.onError(err, 'Failed to fetch hosts')),
+      );
   }
 
   getHost(id: string): Observable<Host> {
@@ -196,8 +199,11 @@ export class ManagerService {
 
   getGates(): Observable<Gate[]> {
     return this.http
-      .get<Gate[]>(this.gatesUrl)
-      .pipe(catchError((err) => this.onError(err, 'Failed to fetch gates')));
+      .get<{ gates: Gate[]; total: number }>(this.gatesUrl)
+      .pipe(
+        map((res) => res.gates),
+        catchError((err) => this.onError(err, 'Failed to fetch gates')),
+      );
   }
 
   getGate(id: string): Observable<Gate> {
