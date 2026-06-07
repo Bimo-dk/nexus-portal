@@ -12,5 +12,4 @@ Thumbs.db
 .idea/
 .vscode/
 tsconfig.federation.json
-package-lock.json
 .data/

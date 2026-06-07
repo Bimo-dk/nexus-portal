@@ -61,9 +61,12 @@ ENV DATABASE_URL=sqlite:/data/portal.db
 
 EXPOSE 80
 
-VOLUME ["/data"]
+# Operators picking Postgres/MySQL get no value from a /data volume —
+# mount it explicitly with `-v <vol>:/data` only when DATABASE_URL is
+# the default sqlite path. Leaving the VOLUME directive in the image
+# silently created anonymous volumes and confused users. (G-4)
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost/health || exit 1
+  CMD wget -qO- http://127.0.0.1/health || exit 1
 
 CMD ["node", "dist/server/index.js"]

@@ -62,6 +62,11 @@ export const routes: Routes = [
           import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
       },
       {
+        path: 'catalog/:remote/:expose',
+        loadComponent: () =>
+          import('./features/catalog/catalog-detail.component').then((m) => m.CatalogDetailComponent),
+      },
+      {
         path: 'remotes',
         children: [
           {

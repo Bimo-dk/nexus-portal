@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
+import { Router } from '@angular/router';
+import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CatalogService, type CatalogEntry } from './catalog.service';
 
 @Component({
@@ -15,20 +16,23 @@ import { CatalogService, type CatalogEntry } from './catalog.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    MatCardModule,
+    MatTableModule,
     MatButtonModule,
     MatIconModule,
-    MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatTooltipModule,
   ],
   template: `
     <div class="page">
       <header>
         <div>
           <h1>Component Catalog</h1>
-          <p>All components exposed by registered remotes, aggregated from per-remote <code>catalog.json</code>.</p>
+          <p>
+            All components exposed by registered remotes, aggregated from per-remote
+            <code>catalog.json</code>. Click a row to see how to use the component plus a live preview.
+          </p>
         </div>
         <div class="actions">
           @if (catalog.lastRefresh(); as t) {
@@ -43,7 +47,8 @@ import { CatalogService, type CatalogEntry } from './catalog.service';
       <section class="filters">
         <mat-form-field appearance="outline">
           <mat-label>Search</mat-label>
-          <input matInput placeholder="title, tags, expose..." [value]="query()" (input)="query.set($any($event.target).value)" />
+          <input matInput placeholder="title, tags, expose..." [value]="query()"
+                 (input)="query.set($any($event.target).value)" />
         </mat-form-field>
 
         <mat-form-field appearance="outline">
@@ -81,46 +86,61 @@ import { CatalogService, type CatalogEntry } from './catalog.service';
           and rebuild the remote.
         </p>
       } @else {
-        <div class="grid">
-          @for (e of filtered(); track e.remote + ':' + e.expose) {
-            <mat-card class="entry">
-              <mat-card-header>
-                @if (e.icon) { <mat-icon mat-card-avatar>{{ e.icon }}</mat-icon> }
-                <mat-card-title>{{ e.title }}</mat-card-title>
-                <mat-card-subtitle>
-                  <code>{{ e.remote }}/{{ e.expose }}</code>
+        <div class="table-wrap">
+          <table mat-table [dataSource]="filtered()">
+            <ng-container matColumnDef="title">
+              <th mat-header-cell *matHeaderCellDef>Title</th>
+              <td mat-cell *matCellDef="let e">
+                <div class="title-cell">
+                  <strong>{{ e.title }}</strong>
                   @if (e.experimental) { <span class="pill warn">experimental</span> }
-                </mat-card-subtitle>
-              </mat-card-header>
-              <mat-card-content>
-                @if (e.description) { <p class="desc">{{ e.description }}</p> }
-                <div class="chips">
-                  @if (e.category) { <span class="pill cat">{{ e.category }}</span> }
-                  @for (t of e.tags; track t) { <span class="pill">{{ t }}</span> }
                 </div>
-                @if (inputCount(e) > 0) {
-                  <details>
-                    <summary>{{ inputCount(e) }} input(s)</summary>
-                    <table class="inputs">
-                      <thead>
-                        <tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
-                      </thead>
-                      <tbody>
-                        @for (kv of inputEntries(e); track kv.name) {
-                          <tr>
-                            <td><code>{{ kv.name }}</code>@if (kv.spec.required) { <sup>*</sup> }</td>
-                            <td><code>{{ kv.spec.type }}</code></td>
-                            <td><code>{{ kv.spec.default !== undefined ? kv.spec.default : '—' }}</code></td>
-                            <td>{{ kv.spec.description || '' }}</td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  </details>
-                }
-              </mat-card-content>
-            </mat-card>
-          } @empty {
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="remote">
+              <th mat-header-cell *matHeaderCellDef>Remote / Expose</th>
+              <td mat-cell *matCellDef="let e">
+                <code class="path">{{ e.remote }}<span class="sep">/</span>{{ e.expose }}</code>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="category">
+              <th mat-header-cell *matHeaderCellDef>Category</th>
+              <td mat-cell *matCellDef="let e">
+                @if (e.category) { <span class="pill cat">{{ e.category }}</span> } @else { <span class="muted">—</span> }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="tags">
+              <th mat-header-cell *matHeaderCellDef>Tags</th>
+              <td mat-cell *matCellDef="let e">
+                <span class="chips">
+                  @for (t of e.tags; track t) { <span class="pill">{{ t }}</span> } @empty { <span class="muted">—</span> }
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="inputs">
+              <th mat-header-cell *matHeaderCellDef>Inputs</th>
+              <td mat-cell *matCellDef="let e">
+                <span class="muted">{{ inputCount(e) }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let e">
+                <button mat-icon-button matTooltip="Open details" (click)="open(e); $event.stopPropagation()">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayed"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayed" class="clickable" (click)="open(row)"></tr>
+          </table>
+          @if (filtered().length === 0) {
             <p class="hint empty">No components match the filters.</p>
           }
         </div>
@@ -140,7 +160,7 @@ import { CatalogService, type CatalogEntry } from './catalog.service';
     .page { padding: 24px; max-width: 1400px; margin: 0 auto; }
     header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 16px; flex-wrap: wrap; }
     header h1 { margin: 0; font-size: 22px; }
-    header p { margin: 4px 0 0; font-size: 13px; color: rgba(0,0,0,0.6); }
+    header p { margin: 4px 0 0; font-size: 13px; color: rgba(0,0,0,0.6); max-width: 720px; }
     header p code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 11px; }
     header .actions { display: flex; align-items: center; gap: 8px; }
     header .meta { font-size: 12px; color: rgba(0,0,0,0.5); }
@@ -149,20 +169,19 @@ import { CatalogService, type CatalogEntry } from './catalog.service';
     .filters mat-form-field { min-width: 160px; }
     .filters .count { margin-left: auto; padding: 0 8px; font-size: 12px; color: rgba(0,0,0,0.6); font-variant-numeric: tabular-nums; }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-    .entry mat-card-subtitle code { font-family: monospace; font-size: 11px; }
-    .desc { margin: 8px 0; font-size: 13px; color: rgba(0,0,0,0.7); }
-    .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+    .table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    table { width: 100%; }
+    .clickable { cursor: pointer; transition: background 0.1s; }
+    .clickable:hover { background: #eef2ff; }
+    .title-cell { display: flex; align-items: center; gap: 8px; }
+    .path { font-family: monospace; font-size: 12px; color: #475569; }
+    .path .sep { color: #cbd5e1; padding: 0 2px; }
+    .chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+    .muted { color: rgba(0,0,0,0.4); font-size: 12px; }
 
     .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; background: #e2e8f0; color: #475569; }
     .pill.cat { background: #eef2ff; color: #4338ca; font-weight: 600; }
-    .pill.warn { background: #fef3c7; color: #92400e; margin-left: 6px; }
-
-    details { margin-top: 8px; font-size: 12px; }
-    details summary { cursor: pointer; color: #6366f1; padding: 4px 0; }
-    table.inputs { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px; }
-    table.inputs th, table.inputs td { padding: 4px 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-    table.inputs code { font-family: monospace; }
+    .pill.warn { background: #fef3c7; color: #92400e; }
 
     .hint { padding: 32px; text-align: center; color: rgba(0,0,0,0.5); }
     .hint.empty code { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
@@ -175,11 +194,14 @@ import { CatalogService, type CatalogEntry } from './catalog.service';
 })
 export class CatalogComponent implements OnInit {
   readonly catalog = inject(CatalogService);
+  private readonly router = inject(Router);
 
   readonly query = signal<string>('');
   readonly category = signal<string>('');
   readonly remote = signal<string>('');
   readonly tag = signal<string>('');
+
+  readonly displayed = ['title', 'remote', 'category', 'tags', 'inputs', 'actions'];
 
   readonly filtered = computed<CatalogEntry[]>(() =>
     this.catalog.filter({
@@ -202,8 +224,8 @@ export class CatalogComponent implements OnInit {
     return Object.keys(e.inputs).length;
   }
 
-  inputEntries(e: CatalogEntry): Array<{ name: string; spec: CatalogEntry['inputs'][string] }> {
-    return Object.entries(e.inputs).map(([name, spec]) => ({ name, spec }));
+  open(e: CatalogEntry): void {
+    void this.router.navigate(['/catalog', e.remote, encodeURIComponent(e.expose)]);
   }
 
   errorEntries(): Array<{ key: string; value: string }> {
